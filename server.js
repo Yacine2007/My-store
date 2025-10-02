@@ -3,7 +3,6 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -11,7 +10,7 @@ const PORT = process.env.PORT || 10000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
 // GitHub Configuration
 const GITHUB_TOKEN = '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';
@@ -50,15 +49,14 @@ const defaultData = {
     }
 };
 
-// Helper function to get data from GitHub
+// دالة محسنة لجلب البيانات مع معالجة الأخطاء
 async function getDataFromGitHub() {
     try {
         console.log('🔍 جاري جلب البيانات من GitHub...');
         const response = await axios.get(GITHUB_API_URL, {
             headers: {
                 'Authorization': `token ${GITHUB_TOKEN}`,
-                'User-Agent': 'My-Store-App',
-                'Accept': 'application/vnd.github.v3+json'
+                'User-Agent': 'My-Store-App'
             },
             timeout: 10000
         });
@@ -67,25 +65,28 @@ async function getDataFromGitHub() {
         console.log('✅ تم جلب البيانات بنجاح من GitHub');
         return JSON.parse(content);
     } catch (error) {
-        console.error('❌ خطأ في جلب البيانات من GitHub:', error.message);
+        console.error('❌ خطأ في جلب البيانات:', error.response?.status, error.message);
         
-        // إذا لم يوجد الملف، نرجع البيانات الافتراضية
-        if (error.response && error.response.status === 404) {
+        if (error.response?.status === 404) {
             console.log('📄 الملف غير موجود، جاري استخدام البيانات الافتراضية');
             return JSON.parse(JSON.stringify(defaultData));
         }
         
-        console.error('تفاصيل الخطأ:', error.response?.data || error.message);
-        throw error;
+        if (error.response?.status === 403) {
+            console.log('🚫 خطأ في الصلاحيات');
+            throw new Error('صلاحيات التوكن غير كافية');
+        }
+        
+        console.log('🔄 استخدام البيانات الافتراضية بسبب خطأ في الاتصال');
+        return JSON.parse(JSON.stringify(defaultData));
     }
 }
 
-// Helper function to update data on GitHub
+// دالة محسنة لحفظ البيانات
 async function updateDataOnGitHub(data) {
     try {
-        console.log('🔄 جاري تحديث البيانات على GitHub...');
+        console.log('💾 جاري حفظ البيانات على GitHub...');
         
-        // نحاول أولاً جلب الملف الحالي للحصول على SHA
         let sha = null;
         try {
             const currentFile = await axios.get(GITHUB_API_URL, {
@@ -95,25 +96,22 @@ async function updateDataOnGitHub(data) {
                 }
             });
             sha = currentFile.data.sha;
-            console.log('✅ تم الحصول على SHA للملف الحالي');
+            console.log('📝 وجدنا ملف موجود، جاري التحديث...');
         } catch (error) {
-            if (error.response && error.response.status === 404) {
-                console.log('📄 الملف غير موجود، جاري إنشاء ملف جديد');
-                sha = null;
+            if (error.response?.status === 404) {
+                console.log('🆕 الملف غير موجود، جاري الإنشاء...');
             } else {
                 throw error;
             }
         }
 
-        // تحويل البيانات إلى base64
         const content = Buffer.from(JSON.stringify(data, null, 2)).toString('base64');
         
         const requestData = {
-            message: `🔄 تحديث بيانات المتجر - ${new Date().toISOString()}`,
+            message: `🔄 تحديث بيانات المتجر - ${new Date().toLocaleString('ar-EG')}`,
             content: content
         };
 
-        // إذا وجدنا SHA نضيفه للطلب
         if (sha) {
             requestData.sha = sha;
         }
@@ -127,47 +125,43 @@ async function updateDataOnGitHub(data) {
             timeout: 15000
         });
 
-        console.log('✅ تم تحديث البيانات بنجاح على GitHub');
+        console.log('✅ تم حفظ البيانات بنجاح على GitHub');
+        console.log('📊 commit SHA:', response.data.commit.sha);
         return response.data;
     } catch (error) {
-        console.error('❌ خطأ في تحديث البيانات على GitHub:', error.message);
-        console.error('تفاصيل الخطأ:', error.response?.data || error.message);
-        throw error;
+        console.error('❌ فشل في حفظ البيانات:', error.response?.status, error.message);
+        console.error('تفاصيل الخطأ:', error.response?.data);
+        throw new Error(`فشل في الحفظ: ${error.message}`);
     }
 }
 
-// API Routes
+// ========== API Routes ==========
 
-// Get all data (for dashboard)
+// الحصول على جميع البيانات
 app.get('/api/data', async (req, res) => {
     try {
-        console.log('📊 طلب جلب جميع البيانات');
         const data = await getDataFromGitHub();
         res.json(data);
     } catch (error) {
-        console.error('❌ فشل في جلب البيانات:', error.message);
-        res.status(500).json({ 
-            error: 'فشل في جلب البيانات',
-            details: error.message 
-        });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Get store settings (for frontend)
+// الحصول على إعدادات المتجر
 app.get('/api/settings', async (req, res) => {
     try {
         const data = await getDataFromGitHub();
         res.json(data.settings);
     } catch (error) {
-        res.status(500).json({ error: 'فشل في جلب الإعدادات' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Update settings
+// تحديث إعدادات المتجر
 app.put('/api/settings', async (req, res) => {
     try {
         const newSettings = req.body;
-        console.log('⚙️ طلب تحديث الإعدادات:', newSettings);
+        console.log('⚙️ تحديث الإعدادات:', newSettings);
         
         const data = await getDataFromGitHub();
         data.settings = { ...data.settings, ...newSettings };
@@ -176,53 +170,64 @@ app.put('/api/settings', async (req, res) => {
         
         res.json({ success: true, message: 'تم تحديث الإعدادات بنجاح' });
     } catch (error) {
-        console.error('❌ فشل في تحديث الإعدادات:', error.message);
-        res.status(500).json({ error: 'فشل في تحديث الإعدادات' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Get products
+// الحصول على المنتجات
 app.get('/api/products', async (req, res) => {
     try {
         const data = await getDataFromGitHub();
         res.json(data.products || []);
     } catch (error) {
-        res.status(500).json({ error: 'فشل في جلب المنتجات' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Add new product
+// إضافة منتج جديد
 app.post('/api/products', async (req, res) => {
     try {
         const product = req.body;
-        console.log('🆕 طلب إضافة منتج جديد:', product);
+        console.log('🆕 إضافة منتج جديد:', product);
         
         const data = await getDataFromGitHub();
         
-        // Generate unique ID
-        product.id = Date.now();
-        product.createdAt = new Date().toISOString();
-        product.status = product.status || 'active';
+        // التأكد من أن products موجود
+        if (!data.products) {
+            data.products = [];
+        }
         
-        if (!data.products) data.products = [];
-        data.products.push(product);
+        // إنشاء منتج جديد
+        const newProduct = {
+            id: Date.now(),
+            name: product.name,
+            description: product.description || '',
+            price: parseFloat(product.price),
+            quantity: parseInt(product.quantity),
+            category: product.category || 'electronics',
+            image: product.image || 'https://via.placeholder.com/300',
+            status: product.status || 'active',
+            createdAt: new Date().toISOString()
+        };
+        
+        data.products.push(newProduct);
         
         await updateDataOnGitHub(data);
         
-        console.log('✅ تم إضافة المنتج بنجاح، الرقم:', product.id);
-        res.json({ success: true, product });
+        console.log('✅ تم إضافة المنتج بنجاح:', newProduct.id);
+        res.json({ success: true, product: newProduct });
     } catch (error) {
-        console.error('❌ فشل في إضافة المنتج:', error.message);
-        res.status(500).json({ error: 'فشل في إضافة المنتج' });
+        console.error('❌ فشل في إضافة المنتج:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Update product
+// تحديث منتج
 app.put('/api/products/:id', async (req, res) => {
     try {
         const productId = parseInt(req.params.id);
         const updatedProduct = req.body;
-        console.log('✏️ طلب تحديث المنتج:', productId, updatedProduct);
+        console.log('✏️ تحديث المنتج:', productId, updatedProduct);
         
         const data = await getDataFromGitHub();
         
@@ -241,95 +246,92 @@ app.put('/api/products/:id', async (req, res) => {
         
         res.json({ success: true, product: data.products[productIndex] });
     } catch (error) {
-        console.error('❌ فشل في تحديث المنتج:', error.message);
-        res.status(500).json({ error: 'فشل في تحديث المنتج' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Delete product
+// حذف منتج
 app.delete('/api/products/:id', async (req, res) => {
     try {
         const productId = parseInt(req.params.id);
-        console.log('🗑️ طلب حذف المنتج:', productId);
+        console.log('🗑️ حذف المنتج:', productId);
         
         const data = await getDataFromGitHub();
         
+        const initialLength = data.products.length;
         data.products = data.products.filter(p => p.id !== productId);
+        
+        if (data.products.length === initialLength) {
+            return res.status(404).json({ error: 'المنتج غير موجود' });
+        }
+        
         await updateDataOnGitHub(data);
         
         res.json({ success: true, message: 'تم حذف المنتج بنجاح' });
     } catch (error) {
-        console.error('❌ فشل في حذف المنتج:', error.message);
-        res.status(500).json({ error: 'فشل في حذف المنتج' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Get orders
+// الحصول على الطلبات
 app.get('/api/orders', async (req, res) => {
     try {
         const data = await getDataFromGitHub();
         res.json(data.orders || []);
     } catch (error) {
-        res.status(500).json({ error: 'فشل في جلب الطلبات' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Add new order (from store frontend)
+// إضافة طلب جديد
 app.post('/api/orders', async (req, res) => {
     try {
-        const order = req.body;
-        console.log('🛒 طلب جديد:', order);
+        const orderData = req.body;
+        console.log('🛒 طلب جديد:', orderData);
         
         const data = await getDataFromGitHub();
         
-        // Generate unique order ID
-        order.id = 'ORD-' + Date.now();
-        order.createdAt = new Date().toISOString();
-        order.status = 'pending';
-        
-        // Calculate total
-        order.total = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        
-        if (!data.orders) data.orders = [];
-        data.orders.push(order);
-        
-        // Update analytics
-        if (!data.analytics) data.analytics = { totalVisitors: 0, totalOrders: 0, totalRevenue: 0, monthlyData: [] };
-        data.analytics.totalOrders += 1;
-        data.analytics.totalRevenue += order.total;
-        
-        // Update monthly data
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const monthlyIndex = data.analytics.monthlyData.findIndex(m => m.month === currentMonth);
-        
-        if (monthlyIndex === -1) {
-            data.analytics.monthlyData.push({
-                month: currentMonth,
-                orders: 1,
-                revenue: order.total,
-                visitors: 0
-            });
-        } else {
-            data.analytics.monthlyData[monthlyIndex].orders += 1;
-            data.analytics.monthlyData[monthlyIndex].revenue += order.total;
+        if (!data.orders) {
+            data.orders = [];
         }
+        
+        const newOrder = {
+            id: 'ORD-' + Date.now(),
+            customerName: orderData.customerName,
+            phone: orderData.phone,
+            address: orderData.address,
+            description: orderData.description || '',
+            items: orderData.items || [],
+            total: orderData.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0,
+            status: 'pending',
+            createdAt: new Date().toISOString()
+        };
+        
+        data.orders.push(newOrder);
+        
+        // تحديث الإحصائيات
+        if (!data.analytics) {
+            data.analytics = { totalVisitors: 0, totalOrders: 0, totalRevenue: 0, monthlyData: [] };
+        }
+        data.analytics.totalOrders += 1;
+        data.analytics.totalRevenue += newOrder.total;
         
         await updateDataOnGitHub(data);
         
-        console.log('✅ تم إضافة الطلب بنجاح، الرقم:', order.id);
-        res.json({ success: true, orderId: order.id });
+        console.log('✅ تم إضافة الطلب بنجاح:', newOrder.id);
+        res.json({ success: true, orderId: newOrder.id, order: newOrder });
     } catch (error) {
-        console.error('❌ فشل في إنشاء الطلب:', error.message);
-        res.status(500).json({ error: 'فشل في إنشاء الطلب' });
+        console.error('❌ فشل في إضافة الطلب:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Update order status
+// تحديث حالة الطلب
 app.put('/api/orders/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
         const { status } = req.body;
-        console.log('📝 طلب تحديث حالة الطلب:', orderId, status);
+        console.log('📝 تحديث حالة الطلب:', orderId, status);
         
         const data = await getDataFromGitHub();
         
@@ -345,16 +347,15 @@ app.put('/api/orders/:id', async (req, res) => {
         
         res.json({ success: true, order: data.orders[orderIndex] });
     } catch (error) {
-        console.error('❌ فشل في تحديث الطلب:', error.message);
-        res.status(500).json({ error: 'فشل في تحديث الطلب' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Delete order
+// حذف طلب
 app.delete('/api/orders/:id', async (req, res) => {
     try {
         const orderId = req.params.id;
-        console.log('🗑️ طلب حذف الطلب:', orderId);
+        console.log('🗑️ حذف الطلب:', orderId);
         
         const data = await getDataFromGitHub();
         
@@ -363,68 +364,56 @@ app.delete('/api/orders/:id', async (req, res) => {
             return res.status(404).json({ error: 'الطلب غير موجود' });
         }
         
-        // Update analytics before deleting
         const order = data.orders[orderIndex];
-        data.analytics.totalOrders -= 1;
-        data.analytics.totalRevenue -= order.total;
+        data.orders.splice(orderIndex, 1);
         
-        data.orders = data.orders.filter(o => o.id !== orderId);
+        // تحديث الإحصائيات
+        if (data.analytics) {
+            data.analytics.totalOrders = Math.max(0, data.analytics.totalOrders - 1);
+            data.analytics.totalRevenue = Math.max(0, data.analytics.totalRevenue - order.total);
+        }
+        
         await updateDataOnGitHub(data);
         
         res.json({ success: true, message: 'تم حذف الطلب بنجاح' });
     } catch (error) {
-        console.error('❌ فشل في حذف الطلب:', error.message);
-        res.status(500).json({ error: 'فشل في حذف الطلب' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Track visitor
+// تتبع الزوار
 app.post('/api/analytics/visitor', async (req, res) => {
     try {
         const data = await getDataFromGitHub();
         
-        if (!data.analytics) data.analytics = { totalVisitors: 0, totalOrders: 0, totalRevenue: 0, monthlyData: [] };
-        data.analytics.totalVisitors += 1;
-        
-        // Update monthly data
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const monthlyIndex = data.analytics.monthlyData.findIndex(m => m.month === currentMonth);
-        
-        if (monthlyIndex === -1) {
-            data.analytics.monthlyData.push({
-                month: currentMonth,
-                orders: 0,
-                revenue: 0,
-                visitors: 1
-            });
-        } else {
-            data.analytics.monthlyData[monthlyIndex].visitors += 1;
+        if (!data.analytics) {
+            data.analytics = { totalVisitors: 0, totalOrders: 0, totalRevenue: 0, monthlyData: [] };
         }
+        data.analytics.totalVisitors += 1;
         
         await updateDataOnGitHub(data);
         
         res.json({ success: true });
     } catch (error) {
-        console.error('❌ فشل في تتبع الزائر:', error.message);
-        res.status(500).json({ error: 'فشل في تتبع الزائر' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Get analytics
+// الحصول على الإحصائيات
 app.get('/api/analytics', async (req, res) => {
     try {
         const data = await getDataFromGitHub();
         res.json(data.analytics || {});
     } catch (error) {
-        res.status(500).json({ error: 'فشل في جلب الإحصائيات' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Update admin settings
+// تحديث إعدادات المدير
 app.put('/api/admin', async (req, res) => {
     try {
         const adminData = req.body;
-        console.log('👤 طلب تحديث إعدادات المدير:', adminData);
+        console.log('👤 تحديث إعدادات المدير:', adminData);
         
         const data = await getDataFromGitHub();
         
@@ -433,66 +422,89 @@ app.put('/api/admin', async (req, res) => {
         
         res.json({ success: true, admin: data.admin });
     } catch (error) {
-        console.error('❌ فشل في تحديث إعدادات المدير:', error.message);
-        res.status(500).json({ error: 'فشل في تحديث إعدادات المدير' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Initialize data file
+// إنشاء ملف البيانات الأولي
 app.post('/api/init', async (req, res) => {
     try {
-        console.log('🚀 جاري تهيئة ملف البيانات...');
+        console.log('🚀 جاري إنشاء ملف البيانات الأولي...');
         await updateDataOnGitHub(defaultData);
-        res.json({ success: true, message: 'تم تهيئة البيانات بنجاح' });
+        res.json({ success: true, message: 'تم إنشاء ملف البيانات بنجاح' });
     } catch (error) {
-        console.error('❌ فشل في تهيئة البيانات:', error.message);
-        res.status(500).json({ error: 'فشل في تهيئة البيانات' });
+        res.status(500).json({ error: error.message });
     }
 });
 
-// Serve store frontend
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Serve dashboard
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-// Health check
-app.get('/health', async (req, res) => {
+// فحص اتصال GitHub
+app.get('/api/debug/github', async (req, res) => {
     try {
-        await getDataFromGitHub();
-        res.json({ 
-            status: 'OK', 
-            timestamp: new Date().toISOString(),
-            message: 'الخادم يعمل بشكل طبيعي'
+        console.log('🧪 فحص اتصال GitHub...');
+        const response = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`, {
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'User-Agent': 'My-Store-App'
+            }
         });
-    } catch (error) {
-        res.status(500).json({ 
-            status: 'ERROR', 
-            timestamp: new Date().toISOString(),
-            error: error.message 
-        });
-    }
-});
-
-// Test GitHub connection
-app.get('/api/test-github', async (req, res) => {
-    try {
-        console.log('🧪 اختبار اتصال GitHub...');
-        const data = await getDataFromGitHub();
+        
         res.json({ 
             success: true, 
-            message: 'الاتصال مع GitHub يعمل بشكل صحيح',
-            data: data 
+            repo: response.data.full_name,
+            permissions: response.data.permissions
         });
     } catch (error) {
         res.status(500).json({ 
             success: false,
-            error: 'فشل في الاتصال مع GitHub',
-            details: error.message 
+            error: error.message,
+            status: error.response?.status,
+            details: error.response?.data
+        });
+    }
+});
+
+// فحص ملف البيانات
+app.get('/api/debug/data', async (req, res) => {
+    try {
+        const data = await getDataFromGitHub();
+        res.json({
+            success: true,
+            productsCount: data.products?.length || 0,
+            ordersCount: data.orders?.length || 0,
+            settings: data.settings,
+            hasData: true
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+// ========== Routes للتطبيق ==========
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/health', async (req, res) => {
+    try {
+        const data = await getDataFromGitHub();
+        res.json({ 
+            status: 'OK', 
+            timestamp: new Date().toISOString(),
+            dataStatus: data ? 'EXISTS' : 'MISSING',
+            products: data.products?.length || 0
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            status: 'ERROR', 
+            error: error.message 
         });
     }
 });
@@ -502,5 +514,6 @@ app.listen(PORT, () => {
     console.log('🛒 المتجر:', `http://localhost:${PORT}`);
     console.log('📊 لوحة التحكم:', `http://localhost:${PORT}/dashboard`);
     console.log('❤️ فحص الحالة:', `http://localhost:${PORT}/health`);
-    console.log('🧪 اختبار GitHub:', `http://localhost:${PORT}/api/test-github`);
+    console.log('🐛 فحص GitHub:', `http://localhost:${PORT}/api/debug/github`);
+    console.log('📁 فحص البيانات:', `http://localhost:${PORT}/api/debug/data`);
 });
