@@ -1,1 +1,28 @@
-
+{
+  "settings": {
+    "storeName": "My store",
+    "heroTitle": "مرحباً بكم في متجرنا الإلكتروني",
+    "heroDescription": "اكتشف منتجاتنا المميزة بعروض رائعة وتوصيل سريع.",
+    "contact": {
+      "phone": "+213 795082763",
+      "email": "info@mystore.com",
+      "facebook": "https://facebook.com"
+    },
+    "currency": "DA",
+    "language": "ar"
+  },
+  "products": [],
+  "orders": [],
+  "customers": [],
+  "analytics": {
+    "totalVisitors": 0,
+    "totalOrders": 0,
+    "totalRevenue": 0,
+    "monthlyData": []
+  },
+  "admin": {
+    "name": "User",
+    "photo": "X",
+    "role": "Admin"
+  }
+}
