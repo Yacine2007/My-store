@@ -511,7 +511,7 @@
             border-radius: 4px;
         }
 
-        /* Modal Styles - محسنة */
+        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
@@ -552,6 +552,96 @@
             margin-bottom: 20px;
             color: var(--primary);
             text-align: center;
+        }
+
+        /* رفع الصور */
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-bottom: 15px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: #f8f9fa;
+        }
+
+        .upload-area i {
+            font-size: 3rem;
+            color: var(--gray);
+            margin-bottom: 15px;
+        }
+
+        .upload-area p {
+            margin-bottom: 10px;
+            color: var(--gray);
+        }
+
+        .upload-area small {
+            color: #adb5bd;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(67, 97, 238, 0.1);
+        }
+
+        .image-preview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .image-preview-item {
+            position: relative;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            height: 120px;
+        }
+
+        .image-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-preview-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: rgba(230, 57, 70, 0.9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
         }
 
         /* Menu Toggle Button */
@@ -1066,7 +1156,7 @@
         </div>
     </div>
 
-    <!-- Product Modal - محسنة بالكامل -->
+    <!-- Product Modal -->
     <div id="productModal" class="modal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
@@ -1095,11 +1185,25 @@
                     <label for="productCategory">Category</label>
                     <input type="text" id="productCategory" class="form-control" placeholder="Electronics, Fashion, etc.">
                 </div>
+                
+                <!-- قسم رفع الصور -->
                 <div class="form-group">
-                    <label for="productImages">Product Image URLs (one per line)</label>
-                    <textarea id="productImages" class="form-control" rows="3" placeholder="https://github.com/username/repo/product1.png&#10;https://github.com/username/repo/product2.png"></textarea>
-                    <small>Enter one image URL per line. Use GitHub raw URLs for best results.</small>
+                    <label>Product Images</label>
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag & drop images here or click to browse</p>
+                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    <div class="image-preview-container" id="imagePreviewContainer">
+                        <!-- معاينة الصور تظهر هنا -->
+                    </div>
+                    <textarea id="productImages" class="form-control" rows="3" placeholder="Image URLs will appear here automatically" style="display: none;"></textarea>
                 </div>
+
                 <div class="form-group">
                     <label for="productStatus">Status</label>
                     <select id="productStatus" class="form-control">
@@ -1114,7 +1218,7 @@
 
     <script>
         // API Configuration
-        const API_BASE_URL = 'https://my-store-p63u.onrender.com/api';
+        const API_BASE_URL = window.location.origin + '/api';
         
         console.log('API Base URL:', API_BASE_URL);
 
@@ -1124,6 +1228,7 @@
         let storeSettings = {};
         let products = [];
         let orders = [];
+        let uploadedImages = [];
 
         // DOM Elements
         const loginPage = document.getElementById('loginPage');
@@ -1136,6 +1241,12 @@
         const logoutBtn = document.getElementById('logoutBtn');
         const productModal = document.getElementById('productModal');
         const closeModal = document.querySelector('.close-modal');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const productImages = document.getElementById('productImages');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
 
         // Show notification
         function showNotification(title, message, type = 'success') {
@@ -1278,6 +1389,30 @@
                 if (e.target === productModal) {
                     productModal.style.display = 'none';
                 }
+            });
+
+            // أحداث رفع الصور
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', handleFileSelect);
+
+            // أحداث السحب والإفلات
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                handleFiles(files);
             });
         }
 
@@ -1462,7 +1597,7 @@
             }
         }
 
-        // Render products - محسنة
+        // Render products
         function renderProducts() {
             const tbody = document.querySelector('#productsTable tbody');
             tbody.innerHTML = '';
@@ -1834,11 +1969,108 @@
             }
         }
 
-        // Open product modal - محسنة
+        // معالجة اختيار الملفات
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        // معالجة الملفات
+        async function handleFiles(files) {
+            const validFiles = Array.from(files).filter(file => {
+                const isValidType = file.type.startsWith('image/');
+                const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+                
+                if (!isValidType) {
+                    showNotification('Error', 'Only image files are allowed', 'error');
+                }
+                if (!isValidSize) {
+                    showNotification('Error', 'File size must be less than 5MB', 'error');
+                }
+                
+                return isValidType && isValidSize;
+            });
+
+            for (const file of validFiles) {
+                await uploadFile(file);
+            }
+        }
+
+        // رفع ملف واحد
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                progressBar.style.display = 'block';
+                
+                const response = await fetch(`${API_BASE_URL}/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        uploadedImages.push(result.imageUrl);
+                        updateImagePreviews();
+                        updateProductImagesTextarea();
+                        showNotification('Success', 'Image uploaded successfully');
+                    }
+                } else {
+                    throw new Error('Upload failed');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showNotification('Error', 'Failed to upload image', 'error');
+            } finally {
+                progressBar.style.display = 'none';
+                progressFill.style.width = '0%';
+            }
+        }
+
+        // تحديث معاينة الصور
+        function updateImagePreviews() {
+            imagePreviewContainer.innerHTML = '';
+            
+            uploadedImages.forEach((imageUrl, index) => {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'image-preview-item';
+                previewItem.innerHTML = `
+                    <img src="${imageUrl}" alt="Preview ${index + 1}">
+                    <button type="button" class="image-preview-remove" onclick="removeImage(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                imagePreviewContainer.appendChild(previewItem);
+            });
+        }
+
+        // إزالة صورة
+        function removeImage(index) {
+            uploadedImages.splice(index, 1);
+            updateImagePreviews();
+            updateProductImagesTextarea();
+        }
+
+        // تحديث حقل روابط الصور
+        function updateProductImagesTextarea() {
+            productImages.value = uploadedImages.join('\n');
+        }
+
+        // Open product modal
         function openProductModal(product = null) {
             const modal = document.getElementById('productModal');
             const title = document.getElementById('productModalTitle');
             const form = document.getElementById('productForm');
+
+            // إعادة تعيين الصور المرفوعة
+            uploadedImages = [];
+            updateImagePreviews();
+            updateProductImagesTextarea();
 
             if (product) {
                 title.textContent = 'Edit Product';
@@ -1848,7 +2080,14 @@
                 document.getElementById('productPrice').value = product.price;
                 document.getElementById('productQuantity').value = product.quantity;
                 document.getElementById('productCategory').value = product.category || '';
-                document.getElementById('productImages').value = product.images ? product.images.join('\n') : '';
+                
+                // تحميل الصور الحالية للمنتج
+                if (product.images && product.images.length > 0) {
+                    uploadedImages = [...product.images];
+                    updateImagePreviews();
+                    updateProductImagesTextarea();
+                }
+                
                 document.getElementById('productStatus').value = product.status ? 'true' : 'false';
             } else {
                 title.textContent = 'Add Product';
@@ -1859,7 +2098,7 @@
             modal.style.display = 'flex';
         }
 
-        // Handle product save - محسنة
+        // Handle product save
         async function handleProductSave(e) {
             e.preventDefault();
             
@@ -1870,7 +2109,7 @@
                 quantity: parseInt(document.getElementById('productQuantity').value),
                 category: document.getElementById('productCategory').value,
                 status: document.getElementById('productStatus').value === 'true',
-                images: document.getElementById('productImages').value.split('\n').filter(url => url.trim() !== '')
+                images: uploadedImages // استخدام الصور المرفوعة
             };
 
             const productId = document.getElementById('productId').value;
