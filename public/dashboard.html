@@ -1192,7 +1192,7 @@
                     <div class="upload-area" id="uploadArea">
                         <i class="fas fa-cloud-upload-alt"></i>
                         <p>Drag & drop images here or click to browse</p>
-                        <small>Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                        <small>Supported formats: JPG, PNG, GIF (Max: 10MB)</small>
                         <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
                         <div class="progress-bar" id="progressBar">
                             <div class="progress-fill" id="progressFill"></div>
@@ -1207,7 +1207,7 @@
                 <div class="form-group">
                     <label for="productStatus">Status</label>
                     <select id="productStatus" class="form-control">
-                        <option value="true">Active</option>
+                        <option value="true" selected>Active</option>
                         <option value="false">Inactive</option>
                     </select>
                 </div>
@@ -1217,7 +1217,7 @@
     </div>
 
     <script>
-        // API Configuration
+        // API Configuration - استخدام السيرفر المباشر
         const API_BASE_URL = 'https://my-store-p63u.onrender.com/api';
         
         console.log('API Base URL:', API_BASE_URL);
@@ -1886,7 +1886,7 @@
                 });
 
                 if (response.ok) {
-                    showNotification('Success', 'Settings saved successfully! The changes will be applied to the store immediately.');
+                    showNotification('Success', 'Settings saved successfully!');
                 } else {
                     showNotification('Error', 'Failed to save settings', 'error');
                 }
@@ -1979,16 +1979,18 @@
         async function handleFiles(files) {
             const validFiles = Array.from(files).filter(file => {
                 const isValidType = file.type.startsWith('image/');
-                const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB
+                const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
                 
                 if (!isValidType) {
                     showNotification('Error', 'Only image files are allowed', 'error');
+                    return false;
                 }
                 if (!isValidSize) {
-                    showNotification('Error', 'File size must be less than 5MB', 'error');
+                    showNotification('Error', 'File size must be less than 10MB', 'error');
+                    return false;
                 }
                 
-                return isValidType && isValidSize;
+                return true;
             });
 
             for (const file of validFiles) {
@@ -2003,6 +2005,7 @@
 
             try {
                 progressBar.style.display = 'block';
+                progressFill.style.width = '50%';
                 
                 const response = await fetch(`${API_BASE_URL}/upload`, {
                     method: 'POST',
@@ -2019,16 +2022,21 @@
                         updateImagePreviews();
                         updateProductImagesTextarea();
                         showNotification('Success', 'Image uploaded successfully');
+                        progressFill.style.width = '100%';
+                    } else {
+                        throw new Error('Upload failed');
                     }
                 } else {
                     throw new Error('Upload failed');
                 }
             } catch (error) {
                 console.error('Upload error:', error);
-                showNotification('Error', 'Failed to upload image', 'error');
+                showNotification('Error', 'Failed to upload image: ' + error.message, 'error');
             } finally {
-                progressBar.style.display = 'none';
-                progressFill.style.width = '0%';
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                }, 1000);
             }
         }
 
@@ -2093,6 +2101,8 @@
                 title.textContent = 'Add Product';
                 form.reset();
                 document.getElementById('productId').value = '';
+                // وضع افتراضي Active
+                document.getElementById('productStatus').value = 'true';
             }
 
             modal.style.display = 'flex';
@@ -2216,4 +2226,3 @@
     </script>
 </body>
 </html>
-
