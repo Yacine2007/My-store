@@ -4,7 +4,6 @@ const fs = require('fs').promises;
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
