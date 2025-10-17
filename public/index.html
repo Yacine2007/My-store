@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -67,6 +67,20 @@
         .logo h1 {
             font-size: 1.5rem;
             font-weight: 700;
+        }
+
+        .admin-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border: 1px solid white;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+        }
+
+        .admin-link:hover {
+            background: white;
+            color: var(--primary);
         }
 
         /* Hero Section */
@@ -453,8 +467,9 @@
             <div class="header-content">
                 <div class="logo">
                     <img src="https://raw.githubusercontent.com/Yacne/B.Y-PRO---Official-Page/main/B.Y%20PRO.png?raw=true" alt="B.Y PRO Logo">
-                    <h1 id="storeName">متجر الإلكتروني</h1>
+                    <h1 id="storeName">My Store</h1>
                 </div>
+                <a href="/admin" class="admin-link">Admin Panel</a>
             </div>
         </div>
     </header>
@@ -462,19 +477,19 @@
     <!-- Hero Section -->
     <section class="hero">
         <div class="container">
-            <h2 id="heroTitle">مرحباً بكم في متجرنا الإلكتروني</h2>
-            <p id="heroDescription">اكتشف منتجاتنا المميزة بعروض رائعة وتوصيل سريع.</p>
-            <a href="#products" class="btn">تسوق الآن</a>
+            <h2 id="heroTitle">Welcome to Our Store</h2>
+            <p id="heroDescription">Discover our amazing products with great offers and fast delivery.</p>
+            <a href="#products" class="btn">Shop Now</a>
         </div>
     </section>
 
     <!-- Products Section -->
     <section class="container" id="products">
-        <h2 class="section-title">منتجاتنا</h2>
+        <h2 class="section-title">Our Products</h2>
         <div class="products-grid" id="products-container">
             <div class="loading">
                 <i class="fas fa-spinner"></i>
-                <p>جاري تحميل المنتجات...</p>
+                <p>Loading products...</p>
             </div>
         </div>
     </section>
@@ -483,18 +498,18 @@
     <div class="modal" id="orderModal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
-            <h2 class="modal-title">تقديم طلب</h2>
+            <h2 class="modal-title">Place Order</h2>
             <form id="orderForm">
                 <div class="form-group">
-                    <label for="productName">المنتج</label>
+                    <label for="productName">Product</label>
                     <input type="text" id="productName" class="form-control" readonly>
                 </div>
                 <div class="form-group">
-                    <label for="productPrice">السعر</label>
+                    <label for="productPrice">Price</label>
                     <input type="text" id="productPrice" class="form-control" readonly>
                 </div>
                 <div class="form-group">
-                    <label for="quantity">الكمية</label>
+                    <label for="quantity">Quantity</label>
                     <div class="quantity-selector">
                         <button type="button" class="quantity-btn" id="decreaseQty">-</button>
                         <input type="number" id="quantity" class="form-control quantity-input" value="1" min="1">
@@ -502,24 +517,24 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="customerName">اسم العميل</label>
+                    <label for="customerName">Customer Name</label>
                     <input type="text" id="customerName" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="description">ملاحظات خاصة</label>
-                    <textarea id="description" class="form-control" rows="3" placeholder="أي طلبات أو تعليمات خاصة..."></textarea>
+                    <label for="description">Special Notes</label>
+                    <textarea id="description" class="form-control" rows="3" placeholder="Any special requests or instructions..."></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="address">العنوان الكامل</label>
-                    <textarea id="address" class="form-control" rows="3" placeholder="أدخل عنوانك الكامل..." required></textarea>
+                    <label for="address">Full Address</label>
+                    <textarea id="address" class="form-control" rows="3" placeholder="Enter your full address..." required></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="phone">رقم الهاتف</label>
-                    <input type="tel" id="phone" class="form-control" placeholder="أدخل رقم هاتفك" required>
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" class="form-control" placeholder="Enter your phone number" required>
                 </div>
-                <button type="submit" class="btn">تقديم الطلب</button>
+                <button type="submit" class="btn">Place Order</button>
                 <a href="#" id="facebookLink" class="btn facebook-btn">
-                    <i class="fab fa-facebook-f"></i> تواصل عبر فيسبوك
+                    <i class="fab fa-facebook-f"></i> Contact via Facebook
                 </a>
             </form>
         </div>
@@ -534,24 +549,24 @@
                         <img src="https://raw.githubusercontent.com/Yacne/B.Y-PRO---Official-Page/main/B.Y%20PRO.png?raw=true" alt="B.Y PRO Logo">
                         <h3>B.Y PRO</h3>
                     </div>
-                    <p>شريكك الموثوق لحلول البرمجيات والخدمات الرقمية.</p>
+                    <p>Your trusted partner for software solutions and digital services.</p>
                 </div>
                 <div class="footer-contact">
-                    <h4>اتصل بنا</h4>
+                    <h4>Contact Us</h4>
                     <p><i class="fas fa-phone"></i> <span id="footerPhone">+213 123 456 789</span></p>
                     <p><i class="fas fa-envelope"></i> <span id="footerEmail">info@mystore.com</span></p>
-                    <p><i class="fab fa-facebook"></i> <span id="footerFacebook">صفحتنا على فيسبوك</span></p>
+                    <p><i class="fab fa-facebook"></i> <span id="footerFacebook">Our Facebook Page</span></p>
                 </div>
             </div>
             <div class="copyright">
-                <p>&copy; <span id="currentYear"></span> <span id="footerStoreName">متجر الإلكتروني</span>. جميع الحقوق محفوظة. | تم التصميم من قبل B.Y PRO للبرمجيات والخدمات</p>
+                <p>&copy; <span id="currentYear"></span> <span id="footerStoreName">My Store</span>. All rights reserved. | Designed by B.Y PRO Software & Services</p>
             </div>
         </div>
     </footer>
 
     <script>
         // API Configuration
-        const API_BASE_URL = 'https://my-store-p63u.onrender.com/api';
+        const API_BASE_URL = window.location.origin + '/api';
         
         // DOM Elements
         const productsContainer = document.getElementById('products-container');
@@ -613,21 +628,28 @@
                 renderProducts();
             } catch (error) {
                 console.error('Error loading store data:', error);
-                showError('حدث خطأ في تحميل البيانات. يرجى المحاولة مرة أخرى.');
+                showError('Error loading data. Please try again.');
             }
         }
 
         // Apply store configuration to the page
         function applyStoreConfig() {
-            document.getElementById('storeName').textContent = storeConfig.storeName || 'متجر الإلكتروني';
-            document.getElementById('heroTitle').textContent = storeConfig.heroTitle || 'مرحباً بكم في متجرنا الإلكتروني';
-            document.getElementById('heroDescription').textContent = storeConfig.heroDescription || 'اكتشف منتجاتنا المميزة بعروض رائعة وتوصيل سريع.';
-            document.getElementById('footerStoreName').textContent = storeConfig.storeName || 'متجر الإلكتروني';
+            document.getElementById('storeName').textContent = storeConfig.storeName || 'My Store';
+            document.getElementById('heroTitle').textContent = storeConfig.heroTitle || 'Welcome to Our Store';
+            document.getElementById('heroDescription').textContent = storeConfig.heroDescription || 'Discover our amazing products with great offers and fast delivery.';
+            document.getElementById('footerStoreName').textContent = storeConfig.storeName || 'My Store';
             document.getElementById('footerPhone').textContent = storeConfig.contact?.phone || '+213 123 456 789';
             document.getElementById('footerEmail').textContent = storeConfig.contact?.email || 'info@mystore.com';
             
             if (storeConfig.contact?.facebook) {
                 facebookLink.href = storeConfig.contact.facebook;
+            }
+
+            // Apply theme colors
+            if (storeConfig.theme) {
+                document.documentElement.style.setProperty('--primary', storeConfig.theme.primary);
+                document.documentElement.style.setProperty('--secondary', storeConfig.theme.secondary);
+                document.documentElement.style.setProperty('--accent', storeConfig.theme.accent);
             }
         }
 
@@ -639,37 +661,63 @@
                 productsContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-box-open"></i>
-                        <h3>لا توجد منتجات متاحة</h3>
-                        <p>سيظهر هنا المنتجات عندما يتم إضافتها من لوحة التحكم.</p>
+                        <h3>No products available</h3>
+                        <p>Products will appear here when added from the admin panel.</p>
                     </div>
                 `;
                 return;
             }
             
-            currentProducts.forEach(product => {
-                if (product.status === 'active') {
-                    const productCard = document.createElement('div');
-                    productCard.className = 'product-card';
-                    productCard.innerHTML = `
-                        <img src="${product.image || 'https://via.placeholder.com/300'}" alt="${product.name}" class="product-image">
-                        <div class="product-info">
-                            <h3 class="product-title">${product.name}</h3>
-                            <p class="product-description">${product.description || 'لا يوجد وصف'}</p>
-                            <div class="product-price">${product.price} ${storeConfig.currency || 'DA'}</div>
-                            <div class="product-actions">
-                                <button class="btn order-now" data-id="${product.id}">اطلب الآن</button>
-                            </div>
+            const activeProducts = currentProducts.filter(product => product.status === true);
+            
+            if (activeProducts.length === 0) {
+                productsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-box-open"></i>
+                        <h3>No active products</h3>
+                        <p>All products are currently unavailable. Please check back later.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            activeProducts.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card';
+                
+                const imageUrl = product.images && product.images.length > 0 
+                    ? `/uploads/${product.images[0]}`
+                    : 'https://via.placeholder.com/300x200?text=No+Image';
+                
+                productCard.innerHTML = `
+                    <img src="${imageUrl}" alt="${product.name}" class="product-image">
+                    <div class="product-info">
+                        <h3 class="product-title">${product.name}</h3>
+                        <p class="product-description">${product.description || 'No description available.'}</p>
+                        <div class="product-price">${product.price} ${storeConfig.currency || 'DA'}</div>
+                        <div class="product-actions">
+                            <button class="btn btn-outline view-details" data-id="${product.id}">Details</button>
+                            <button class="btn order-btn" data-id="${product.id}">Order Now</button>
                         </div>
-                    `;
-                    productsContainer.appendChild(productCard);
-                }
+                    </div>
+                `;
+                
+                productsContainer.appendChild(productCard);
             });
-
+            
             // Add event listeners to order buttons
-            document.querySelectorAll('.order-now').forEach(button => {
-                button.addEventListener('click', function() {
-                    const productId = parseInt(this.getAttribute('data-id'));
+            document.querySelectorAll('.order-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = parseInt(e.target.dataset.id);
                     openOrderModal(productId);
+                });
+            });
+            
+            // Add event listeners to view details buttons
+            document.querySelectorAll('.view-details').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = parseInt(e.target.dataset.id);
+                    viewProductDetails(productId);
                 });
             });
         }
@@ -677,57 +725,76 @@
         // Open order modal
         function openOrderModal(productId) {
             selectedProduct = currentProducts.find(p => p.id === productId);
-            if (selectedProduct) {
-                productNameInput.value = selectedProduct.name;
-                productPriceInput.value = `${selectedProduct.price} ${storeConfig.currency || 'DA'}`;
-                quantityInput.value = 1;
-                orderModal.style.display = 'flex';
-            }
+            
+            if (!selectedProduct) return;
+            
+            productNameInput.value = selectedProduct.name;
+            productPriceInput.value = `${selectedProduct.price} ${storeConfig.currency || 'DA'}`;
+            quantityInput.value = 1;
+            
+            orderModal.style.display = 'flex';
         }
 
-        // Close modal
-        closeModal.addEventListener('click', () => {
-            orderModal.style.display = 'none';
-        });
-
-        // Close modal when clicking outside
-        window.addEventListener('click', (e) => {
-            if (e.target === orderModal) {
-                orderModal.style.display = 'none';
-            }
-        });
-
-        // Quantity controls
-        decreaseQtyBtn.addEventListener('click', () => {
-            if (quantityInput.value > 1) {
-                quantityInput.value = parseInt(quantityInput.value) - 1;
-            }
-        });
-
-        increaseQtyBtn.addEventListener('click', () => {
-            quantityInput.value = parseInt(quantityInput.value) + 1;
-        });
-
-        // Form submission
-        orderForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // View product details
+        function viewProductDetails(productId) {
+            const product = currentProducts.find(p => p.id === productId);
             
-            if (!selectedProduct) {
-                alert('الرجاء اختيار منتج أولاً');
-                return;
-            }
+            if (!product) return;
+            
+            // For now, just open the order modal
+            openOrderModal(productId);
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Modal close events
+            closeModal.addEventListener('click', () => {
+                orderModal.style.display = 'none';
+            });
+            
+            window.addEventListener('click', (e) => {
+                if (e.target === orderModal) {
+                    orderModal.style.display = 'none';
+                }
+            });
+            
+            // Quantity buttons
+            decreaseQtyBtn.addEventListener('click', () => {
+                const currentQty = parseInt(quantityInput.value);
+                if (currentQty > 1) {
+                    quantityInput.value = currentQty - 1;
+                }
+            });
+            
+            increaseQtyBtn.addEventListener('click', () => {
+                const currentQty = parseInt(quantityInput.value);
+                quantityInput.value = currentQty + 1;
+            });
+            
+            // Order form submission
+            orderForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await submitOrder();
+            });
+        }
+
+        // Submit order
+        async function submitOrder() {
+            const formData = new FormData(orderForm);
+            const quantity = parseInt(quantityInput.value);
             
             const orderData = {
                 items: [{
                     productId: selectedProduct.id,
-                    productName: selectedProduct.name,
+                    name: selectedProduct.name,
                     price: selectedProduct.price,
-                    quantity: parseInt(quantityInput.value)
+                    quantity: quantity
                 }],
                 customerName: document.getElementById('customerName').value,
                 description: document.getElementById('description').value,
                 address: document.getElementById('address').value,
-                phone: document.getElementById('phone').value
+                phone: document.getElementById('phone').value,
+                total: selectedProduct.price * quantity
             };
             
             try {
@@ -742,21 +809,16 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert('تم تقديم طلبك بنجاح! سنتصل بك قريباً. رقم الطلب: ' + result.orderId);
-                    orderForm.reset();
+                    alert('Order placed successfully! Your order ID is: ' + result.orderId);
                     orderModal.style.display = 'none';
+                    orderForm.reset();
                 } else {
-                    throw new Error(result.error);
+                    alert('Error placing order. Please try again.');
                 }
             } catch (error) {
-                console.error('Error placing order:', error);
-                alert('حدث خطأ في تقديم الطلب. يرجى المحاولة مرة أخرى.');
+                console.error('Error submitting order:', error);
+                alert('Error placing order. Please try again.');
             }
-        });
-
-        // Setup event listeners
-        function setupEventListeners() {
-            // Already set up above
         }
 
         // Show error message
@@ -764,14 +826,14 @@
             productsContainer.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <h3>خطأ في التحميل</h3>
+                    <h3>Error</h3>
                     <p>${message}</p>
-                    <button class="btn" onclick="loadStoreData()" style="margin-top: 20px;">إعادة المحاولة</button>
+                    <button class="btn" onclick="loadStoreData()">Retry</button>
                 </div>
             `;
         }
 
-        // Initialize the store when the page loads
+        // Initialize the store when page loads
         document.addEventListener('DOMContentLoaded', initStore);
     </script>
 </body>
