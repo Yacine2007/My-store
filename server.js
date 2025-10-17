@@ -61,21 +61,21 @@ const initializeDataFile = async () => {
           workingDays: "Saturday - Thursday"
         },
         social: {
-          facebook: "https://facebook.com",
-          twitter: "https://twitter.com",
-          instagram: "https://instagram.com",
-          youtube: "https://youtube.com"
+          facebook: "",
+          twitter: "",
+          instagram: "",
+          youtube: ""
         },
-        logo: "https://raw.githubusercontent.com/Yacine2007/My-store/main/logo.png",
-        favicon: "https://raw.githubusercontent.com/Yacine2007/My-store/main/favicon.png"
+        logo: "",
+        favicon: ""
       },
       user: {
         name: "Admin User",
         role: "System Administrator",
-        avatar: "https://raw.githubusercontent.com/Yacine2007/My-store/main/admin-avatar.png",
+        avatar: "",
         password: hashedPassword
       },
-      products: [], // إزالة المنتجات المثال
+      products: [],
       orders: [],
       analytics: {
         visitors: 0,
@@ -156,6 +156,25 @@ app.get('/', (req, res) => {
 
 // رفع الصور
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    const imageUrl = await uploadImage(req.file.buffer);
+    
+    res.json({ 
+      success: true, 
+      imageUrl: imageUrl 
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
+});
+
+// رفع الصور بدون مصادقة (للمتجر)
+app.post('/api/upload-public', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
@@ -369,7 +388,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
       price: parseFloat(productData.price),
       quantity: parseInt(productData.quantity),
       category: productData.category,
-      status: productData.status !== undefined ? productData.status : true, // افتراضي مفعل
+      status: productData.status !== undefined ? productData.status : true,
       images: productData.images || [],
       createdAt: new Date().toISOString()
     };
@@ -485,16 +504,11 @@ app.post('/api/orders', async (req, res) => {
       address: orderData.address,
       phone: orderData.phone,
       status: 'pending',
-      total: orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+      total: orderData.total || orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
       createdAt: new Date().toISOString()
     };
 
     data.orders.push(newOrder);
-    
-    // Update analytics
-    data.analytics.ordersCount += 1;
-    data.analytics.revenue += newOrder.total;
-
     const success = await writeData(data);
 
     if (success) {
@@ -524,7 +538,20 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
+    const oldStatus = order.status;
     order.status = status;
+
+    // إذا تم تغيير الحالة إلى "مكتمل" ولم يكن مكتملاً من قبل، أضف الإيرادات
+    if (status === 'completed' && oldStatus !== 'completed') {
+      data.analytics.revenue += order.total;
+      data.analytics.ordersCount += 1;
+    }
+    // إذا تم تغيير الحالة من "مكتمل" إلى حالة أخرى، اطرح الإيرادات
+    else if (oldStatus === 'completed' && status !== 'completed') {
+      data.analytics.revenue -= order.total;
+      data.analytics.ordersCount -= 1;
+    }
+
     const success = await writeData(data);
 
     if (success) {
@@ -576,8 +603,9 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   try {
     const data = await readData();
     if (data) {
+      const completedOrders = data.orders.filter(order => order.status === 'completed');
       const stats = {
-        orders: data.orders.length,
+        orders: completedOrders.length,
         products: data.products.length,
         visitors: data.analytics.visitors,
         revenue: data.analytics.revenue
