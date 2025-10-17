@@ -1,519 +1,483 @@
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const axios = require('axios');
+const fs = require('fs').promises;
 const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = 'your-secret-key-change-in-production';
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '10mb' }));
+app.use(express.json());
 app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
 
-// GitHub Configuration
-const GITHUB_TOKEN = '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';
-const REPO_OWNER = 'Yacine2007';
-const REPO_NAME = 'My-store';
-const DATA_FILE_PATH = 'Data.json';
-const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
-
-// بيانات افتراضية
-const defaultData = {
-    settings: {
-        storeName: "متجر الإلكتروني",
-        heroTitle: "مرحباً بكم في متجرنا الإلكتروني",
-        heroDescription: "اكتشف منتجاتنا المميزة بعروض رائعة وتوصيل سريع.",
-        contact: {
-            phone: "+213 123 456 789",
-            email: "info@mystore.com",
-            facebook: "https://facebook.com"
-        },
-        currency: "DA",
-        language: "ar"
-    },
-    products: [],
-    orders: [],
-    customers: [],
-    analytics: {
-        totalVisitors: 0,
-        totalOrders: 0,
-        totalRevenue: 0,
-        monthlyData: []
-    },
-    admin: {
-        name: "أحمد محمد",
-        photo: "https://randomuser.me/api/portraits/men/32.jpg",
-        role: "مدير النظام"
-    }
+// Ensure uploads directory exists
+const ensureUploadsDir = async () => {
+  try {
+    await fs.access('uploads');
+  } catch {
+    await fs.mkdir('uploads');
+  }
 };
 
-// دالة محسنة لجلب البيانات مع معالجة الأخطاء
-async function getDataFromGitHub() {
-    try {
-        console.log('🔍 جاري جلب البيانات من GitHub...');
-        const response = await axios.get(GITHUB_API_URL, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'User-Agent': 'My-Store-App'
-            },
-            timeout: 10000
-        });
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    await ensureUploadsDir();
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
 
-        const content = Buffer.from(response.data.content, 'base64').toString('utf8');
-        console.log('✅ تم جلب البيانات بنجاح من GitHub');
-        return JSON.parse(content);
-    } catch (error) {
-        console.error('❌ خطأ في جلب البيانات:', error.response?.status, error.message);
-        
-        if (error.response?.status === 404) {
-            console.log('📄 الملف غير موجود، جاري استخدام البيانات الافتراضية');
-            return JSON.parse(JSON.stringify(defaultData));
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
+
+// Data file path
+const DATA_FILE = path.join(__dirname, 'data.json');
+
+// Initialize data file
+const initializeDataFile = async () => {
+  try {
+    await fs.access(DATA_FILE);
+  } catch {
+    const initialData = {
+      settings: {
+        storeName: "My Store",
+        heroTitle: "Welcome to Our Store",
+        heroDescription: "Discover our amazing products with great offers and fast delivery.",
+        currency: "DA",
+        language: "en",
+        storeStatus: true,
+        theme: {
+          primary: "#4361ee",
+          secondary: "#3a0ca3",
+          accent: "#f72585"
+        },
+        contact: {
+          phone: "+213 123 456 789",
+          whatsapp: "+213 123 456 789",
+          email: "info@mystore.com",
+          address: "Algiers, Algeria",
+          workingHours: "8:00 AM - 5:00 PM",
+          workingDays: "Saturday - Thursday"
+        },
+        social: {
+          facebook: "",
+          twitter: "",
+          instagram: "",
+          youtube: ""
         }
-        
-        if (error.response?.status === 403) {
-            console.log('🚫 خطأ في الصلاحيات');
-            throw new Error('صلاحيات التوكن غير كافية');
-        }
-        
-        console.log('🔄 استخدام البيانات الافتراضية بسبب خطأ في الاتصال');
-        return JSON.parse(JSON.stringify(defaultData));
+      },
+      user: {
+        name: "Admin User",
+        role: "System Administrator",
+        avatar: "default-avatar.png",
+        password: "$2a$10$8K1p/a0dRTlB0ZQ1F8c.3Oc3J3p3a3a3a3a3a3a3a3a3a3a3a3a3a" // user1234
+      },
+      products: [],
+      orders: [],
+      analytics: {
+        visitors: 0,
+        ordersCount: 0,
+        revenue: 0
+      }
+    };
+    await fs.writeFile(DATA_FILE, JSON.stringify(initialData, null, 2));
+  }
+};
+
+// Read data from file
+const readData = async () => {
+  try {
+    const data = await fs.readFile(DATA_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading data:', error);
+    return null;
+  }
+};
+
+// Write data to file
+const writeData = async (data) => {
+  try {
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing data:', error);
+    return false;
+  }
+};
+
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
     }
-}
+    req.user = user;
+    next();
+  });
+};
 
-// دالة محسنة لحفظ البيانات
-async function updateDataOnGitHub(data) {
-    try {
-        console.log('💾 جاري حفظ البيانات على GitHub...');
-        
-        let sha = null;
-        try {
-            const currentFile = await axios.get(GITHUB_API_URL, {
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'User-Agent': 'My-Store-App'
-                }
-            });
-            sha = currentFile.data.sha;
-            console.log('📝 وجدنا ملف موجود، جاري التحديث...');
-        } catch (error) {
-            if (error.response?.status === 404) {
-                console.log('🆕 الملف غير موجود، جاري الإنشاء...');
-            } else {
-                throw error;
-            }
-        }
+// Routes
 
-        const content = Buffer.from(JSON.stringify(data, null, 2)).toString('base64');
-        
-        const requestData = {
-            message: `🔄 تحديث بيانات المتجر - ${new Date().toLocaleString('ar-EG')}`,
-            content: content
-        };
-
-        if (sha) {
-            requestData.sha = sha;
-        }
-
-        const response = await axios.put(GITHUB_API_URL, requestData, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'User-Agent': 'My-Store-App',
-                'Content-Type': 'application/json'
-            },
-            timeout: 15000
-        });
-
-        console.log('✅ تم حفظ البيانات بنجاح على GitHub');
-        console.log('📊 commit SHA:', response.data.commit.sha);
-        return response.data;
-    } catch (error) {
-        console.error('❌ فشل في حفظ البيانات:', error.response?.status, error.message);
-        console.error('تفاصيل الخطأ:', error.response?.data);
-        throw new Error(`فشل في الحفظ: ${error.message}`);
-    }
-}
-
-// ========== API Routes ==========
-
-// الحصول على جميع البيانات
-app.get('/api/data', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+// Serve dashboard
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
-// الحصول على إعدادات المتجر
-app.get('/api/settings', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        res.json(data.settings);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// تحديث إعدادات المتجر
-app.put('/api/settings', async (req, res) => {
-    try {
-        const newSettings = req.body;
-        console.log('⚙️ تحديث الإعدادات:', newSettings);
-        
-        const data = await getDataFromGitHub();
-        data.settings = { ...data.settings, ...newSettings };
-        
-        await updateDataOnGitHub(data);
-        
-        res.json({ success: true, message: 'تم تحديث الإعدادات بنجاح' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// الحصول على المنتجات
-app.get('/api/products', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        res.json(data.products || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// إضافة منتج جديد
-app.post('/api/products', async (req, res) => {
-    try {
-        const product = req.body;
-        console.log('🆕 إضافة منتج جديد:', product);
-        
-        const data = await getDataFromGitHub();
-        
-        // التأكد من أن products موجود
-        if (!data.products) {
-            data.products = [];
-        }
-        
-        // إنشاء منتج جديد
-        const newProduct = {
-            id: Date.now(),
-            name: product.name,
-            description: product.description || '',
-            price: parseFloat(product.price),
-            quantity: parseInt(product.quantity),
-            category: product.category || 'electronics',
-            image: product.image || 'https://via.placeholder.com/300',
-            status: product.status || 'active',
-            createdAt: new Date().toISOString()
-        };
-        
-        data.products.push(newProduct);
-        
-        await updateDataOnGitHub(data);
-        
-        console.log('✅ تم إضافة المنتج بنجاح:', newProduct.id);
-        res.json({ success: true, product: newProduct });
-    } catch (error) {
-        console.error('❌ فشل في إضافة المنتج:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// تحديث منتج
-app.put('/api/products/:id', async (req, res) => {
-    try {
-        const productId = parseInt(req.params.id);
-        const updatedProduct = req.body;
-        console.log('✏️ تحديث المنتج:', productId, updatedProduct);
-        
-        const data = await getDataFromGitHub();
-        
-        const productIndex = data.products.findIndex(p => p.id === productId);
-        if (productIndex === -1) {
-            return res.status(404).json({ error: 'المنتج غير موجود' });
-        }
-        
-        data.products[productIndex] = { 
-            ...data.products[productIndex], 
-            ...updatedProduct,
-            updatedAt: new Date().toISOString()
-        };
-        
-        await updateDataOnGitHub(data);
-        
-        res.json({ success: true, product: data.products[productIndex] });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// حذف منتج
-app.delete('/api/products/:id', async (req, res) => {
-    try {
-        const productId = parseInt(req.params.id);
-        console.log('🗑️ حذف المنتج:', productId);
-        
-        const data = await getDataFromGitHub();
-        
-        const initialLength = data.products.length;
-        data.products = data.products.filter(p => p.id !== productId);
-        
-        if (data.products.length === initialLength) {
-            return res.status(404).json({ error: 'المنتج غير موجود' });
-        }
-        
-        await updateDataOnGitHub(data);
-        
-        res.json({ success: true, message: 'تم حذف المنتج بنجاح' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// الحصول على الطلبات
-app.get('/api/orders', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        res.json(data.orders || []);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// إضافة طلب جديد
-app.post('/api/orders', async (req, res) => {
-    try {
-        const orderData = req.body;
-        console.log('🛒 طلب جديد:', orderData);
-        
-        const data = await getDataFromGitHub();
-        
-        if (!data.orders) {
-            data.orders = [];
-        }
-        
-        const newOrder = {
-            id: 'ORD-' + Date.now(),
-            customerName: orderData.customerName,
-            phone: orderData.phone,
-            address: orderData.address,
-            description: orderData.description || '',
-            items: orderData.items || [],
-            total: orderData.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0,
-            status: 'pending',
-            createdAt: new Date().toISOString()
-        };
-        
-        data.orders.push(newOrder);
-        
-        // تحديث الإحصائيات
-        if (!data.analytics) {
-            data.analytics = { totalVisitors: 0, totalOrders: 0, totalRevenue: 0, monthlyData: [] };
-        }
-        data.analytics.totalOrders += 1;
-        data.analytics.totalRevenue += newOrder.total;
-        
-        await updateDataOnGitHub(data);
-        
-        console.log('✅ تم إضافة الطلب بنجاح:', newOrder.id);
-        res.json({ success: true, orderId: newOrder.id, order: newOrder });
-    } catch (error) {
-        console.error('❌ فشل في إضافة الطلب:', error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// تحديث حالة الطلب
-app.put('/api/orders/:id', async (req, res) => {
-    try {
-        const orderId = req.params.id;
-        const { status } = req.body;
-        console.log('📝 تحديث حالة الطلب:', orderId, status);
-        
-        const data = await getDataFromGitHub();
-        
-        const orderIndex = data.orders.findIndex(o => o.id === orderId);
-        if (orderIndex === -1) {
-            return res.status(404).json({ error: 'الطلب غير موجود' });
-        }
-        
-        data.orders[orderIndex].status = status;
-        data.orders[orderIndex].updatedAt = new Date().toISOString();
-        
-        await updateDataOnGitHub(data);
-        
-        res.json({ success: true, order: data.orders[orderIndex] });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// حذف طلب
-app.delete('/api/orders/:id', async (req, res) => {
-    try {
-        const orderId = req.params.id;
-        console.log('🗑️ حذف الطلب:', orderId);
-        
-        const data = await getDataFromGitHub();
-        
-        const orderIndex = data.orders.findIndex(o => o.id === orderId);
-        if (orderIndex === -1) {
-            return res.status(404).json({ error: 'الطلب غير موجود' });
-        }
-        
-        const order = data.orders[orderIndex];
-        data.orders.splice(orderIndex, 1);
-        
-        // تحديث الإحصائيات
-        if (data.analytics) {
-            data.analytics.totalOrders = Math.max(0, data.analytics.totalOrders - 1);
-            data.analytics.totalRevenue = Math.max(0, data.analytics.totalRevenue - order.total);
-        }
-        
-        await updateDataOnGitHub(data);
-        
-        res.json({ success: true, message: 'تم حذف الطلب بنجاح' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// تتبع الزوار
-app.post('/api/analytics/visitor', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        
-        if (!data.analytics) {
-            data.analytics = { totalVisitors: 0, totalOrders: 0, totalRevenue: 0, monthlyData: [] };
-        }
-        data.analytics.totalVisitors += 1;
-        
-        await updateDataOnGitHub(data);
-        
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// الحصول على الإحصائيات
-app.get('/api/analytics', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        res.json(data.analytics || {});
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// تحديث إعدادات المدير
-app.put('/api/admin', async (req, res) => {
-    try {
-        const adminData = req.body;
-        console.log('👤 تحديث إعدادات المدير:', adminData);
-        
-        const data = await getDataFromGitHub();
-        
-        data.admin = { ...data.admin, ...adminData };
-        await updateDataOnGitHub(data);
-        
-        res.json({ success: true, admin: data.admin });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// إنشاء ملف البيانات الأولي
-app.post('/api/init', async (req, res) => {
-    try {
-        console.log('🚀 جاري إنشاء ملف البيانات الأولي...');
-        await updateDataOnGitHub(defaultData);
-        res.json({ success: true, message: 'تم إنشاء ملف البيانات بنجاح' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// فحص اتصال GitHub
-app.get('/api/debug/github', async (req, res) => {
-    try {
-        console.log('🧪 فحص اتصال GitHub...');
-        const response = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}`, {
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'User-Agent': 'My-Store-App'
-            }
-        });
-        
-        res.json({ 
-            success: true, 
-            repo: response.data.full_name,
-            permissions: response.data.permissions
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            success: false,
-            error: error.message,
-            status: error.response?.status,
-            details: error.response?.data
-        });
-    }
-});
-
-// فحص ملف البيانات
-app.get('/api/debug/data', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        res.json({
-            success: true,
-            productsCount: data.products?.length || 0,
-            ordersCount: data.orders?.length || 0,
-            settings: data.settings,
-            hasData: true
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            success: false,
-            error: error.message
-        });
-    }
-});
-
-// ========== Routes للتطبيق ==========
-
+// Serve store frontend
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.get('/dashboard', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+  const { password } = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  const isValid = await bcrypt.compare(password, data.user.password);
+  if (isValid) {
+    const token = jwt.sign({ userId: 1 }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ 
+      success: true, 
+      token,
+      user: {
+        name: data.user.name,
+        role: data.user.role,
+        avatar: data.user.avatar
+      }
+    });
+  } else {
+    res.status(401).json({ error: 'Invalid password' });
+  }
 });
 
-app.get('/health', async (req, res) => {
-    try {
-        const data = await getDataFromGitHub();
-        res.json({ 
-            status: 'OK', 
-            timestamp: new Date().toISOString(),
-            dataStatus: data ? 'EXISTS' : 'MISSING',
-            products: data.products?.length || 0
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            status: 'ERROR', 
-            error: error.message 
-        });
-    }
+// Change password
+app.post('/api/change-password', authenticateToken, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  const isValid = await bcrypt.compare(currentPassword, data.user.password);
+  if (!isValid) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  data.user.password = await bcrypt.hash(newPassword, 10);
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ success: true, message: 'Password updated successfully' });
+  } else {
+    res.status(500).json({ error: 'Failed to update password' });
+  }
 });
 
-app.listen(PORT, () => {
-    console.log('🚀 الخادم يعمل على المنفذ:', PORT);
-    console.log('🛒 المتجر:', `http://localhost:${PORT}`);
-    console.log('📊 لوحة التحكم:', `http://localhost:${PORT}/dashboard`);
-    console.log('❤️ فحص الحالة:', `http://localhost:${PORT}/health`);
-    console.log('🐛 فحص GitHub:', `http://localhost:${PORT}/api/debug/github`);
-    console.log('📁 فحص البيانات:', `http://localhost:${PORT}/api/debug/data`);
+// Get settings
+app.get('/api/settings', async (req, res) => {
+  const data = await readData();
+  if (data) {
+    res.json(data.settings);
+  } else {
+    res.status(500).json({ error: 'Failed to load settings' });
+  }
 });
+
+// Update settings
+app.put('/api/settings', authenticateToken, async (req, res) => {
+  const settings = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  data.settings = { ...data.settings, ...settings };
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ success: true, message: 'Settings updated successfully' });
+  } else {
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Update user profile
+app.put('/api/user/profile', authenticateToken, upload.single('avatar'), async (req, res) => {
+  const { name } = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  data.user.name = name;
+
+  if (req.file) {
+    data.user.avatar = req.file.filename;
+  }
+
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ 
+      success: true, 
+      message: 'Profile updated successfully',
+      user: {
+        name: data.user.name,
+        role: data.user.role,
+        avatar: data.user.avatar
+      }
+    });
+  } else {
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Get products
+app.get('/api/products', async (req, res) => {
+  const data = await readData();
+  if (data) {
+    res.json(data.products);
+  } else {
+    res.status(500).json({ error: 'Failed to load products' });
+  }
+});
+
+// Add product
+app.post('/api/products', authenticateToken, upload.array('images', 5), async (req, res) => {
+  const productData = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  const newProduct = {
+    id: Date.now(),
+    name: productData.name,
+    description: productData.description,
+    price: parseFloat(productData.price),
+    quantity: parseInt(productData.quantity),
+    category: productData.category,
+    status: productData.status === 'true',
+    images: req.files ? req.files.map(file => file.filename) : [],
+    createdAt: new Date().toISOString()
+  };
+
+  data.products.push(newProduct);
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ success: true, product: newProduct });
+  } else {
+    res.status(500).json({ error: 'Failed to add product' });
+  }
+});
+
+// Update product
+app.put('/api/products/:id', authenticateToken, upload.array('images', 5), async (req, res) => {
+  const productId = parseInt(req.params.id);
+  const productData = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  const productIndex = data.products.findIndex(p => p.id === productId);
+  if (productIndex === -1) {
+    return res.status(404).json({ error: 'Product not found' });
+  }
+
+  data.products[productIndex] = {
+    ...data.products[productIndex],
+    name: productData.name,
+    description: productData.description,
+    price: parseFloat(productData.price),
+    quantity: parseInt(productData.quantity),
+    category: productData.category,
+    status: productData.status === 'true'
+  };
+
+  if (req.files && req.files.length > 0) {
+    data.products[productIndex].images = req.files.map(file => file.filename);
+  }
+
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ success: true, product: data.products[productIndex] });
+  } else {
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+// Delete product
+app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+  const productId = parseInt(req.params.id);
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  data.products = data.products.filter(p => p.id !== productId);
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ success: true, message: 'Product deleted successfully' });
+  } else {
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// Get orders
+app.get('/api/orders', authenticateToken, async (req, res) => {
+  const data = await readData();
+  if (data) {
+    res.json(data.orders);
+  } else {
+    res.status(500).json({ error: 'Failed to load orders' });
+  }
+});
+
+// Create order
+app.post('/api/orders', async (req, res) => {
+  const orderData = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  const newOrder = {
+    id: Date.now(),
+    items: orderData.items,
+    customerName: orderData.customerName,
+    description: orderData.description,
+    address: orderData.address,
+    phone: orderData.phone,
+    status: 'pending',
+    total: orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+    createdAt: new Date().toISOString()
+  };
+
+  data.orders.push(newOrder);
+  
+  // Update analytics
+  data.analytics.ordersCount += 1;
+  data.analytics.revenue += newOrder.total;
+
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ success: true, orderId: newOrder.id });
+  } else {
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
+// Update order status
+app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
+  const orderId = parseInt(req.params.id);
+  const { status } = req.body;
+  const data = await readData();
+
+  if (!data) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+
+  const order = data.orders.find(o => o.id === orderId);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  order.status = status;
+  const success = await writeData(data);
+
+  if (success) {
+    res.json({ success: true, message: 'Order status updated successfully' });
+  } else {
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
+// Track visitor
+app.post('/api/analytics/visitor', async (req, res) => {
+  const data = await readData();
+
+  if (data) {
+    data.analytics.visitors += 1;
+    await writeData(data);
+  }
+
+  res.json({ success: true });
+});
+
+// Get analytics
+app.get('/api/analytics', authenticateToken, async (req, res) => {
+  const data = await readData();
+  if (data) {
+    res.json(data.analytics);
+  } else {
+    res.status(500).json({ error: 'Failed to load analytics' });
+  }
+});
+
+// Get dashboard stats
+app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
+  const data = await readData();
+  if (data) {
+    const stats = {
+      orders: data.orders.length,
+      products: data.products.length,
+      visitors: data.analytics.visitors,
+      revenue: data.analytics.revenue
+    };
+    res.json(stats);
+  } else {
+    res.status(500).json({ error: 'Failed to load dashboard stats' });
+  }
+});
+
+// Initialize and start server
+const startServer = async () => {
+  await initializeDataFile();
+  await ensureUploadsDir();
+  
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Store: http://localhost:${PORT}`);
+    console.log(`Admin: http://localhost:${PORT}/admin`);
+  });
+};
+
+startServer();
