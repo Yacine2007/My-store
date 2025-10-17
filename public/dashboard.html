@@ -509,10 +509,16 @@
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                    <small style="color: #666; margin-top: 5px; display: block;">Default password: user1234</small>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
+                <div style="text-align: center; margin-top: 15px;">
+                    <button type="button" id="resetPasswordBtn" style="background: none; border: none; color: var(--primary); cursor: pointer; text-decoration: underline;">
+                        Reset Password
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -546,7 +552,7 @@
                     <i class="fas fa-user"></i>
                     <span>Profile</span>
                 </a>
-                <a href="/" class="menu-item">
+                <a href="/" class="menu-item" target="_blank">
                     <i class="fas fa-store"></i>
                     <span>View Store</span>
                 </a>
@@ -954,9 +960,12 @@
     </div>
 
     <script>
-        // API Configuration
+        // API Configuration - FIXED: Use current domain
         const API_BASE_URL = window.location.origin + '/api';
         
+        console.log('API Base URL:', API_BASE_URL);
+        console.log('Current domain:', window.location.origin);
+
         // Global variables
         let authToken = '';
         let currentUser = {};
@@ -968,12 +977,15 @@
         const loginPage = document.getElementById('loginPage');
         const dashboard = document.getElementById('dashboard');
         const loginForm = document.getElementById('loginForm');
+        const resetPasswordBtn = document.getElementById('resetPasswordBtn');
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menuToggle');
         const logoutBtn = document.getElementById('logoutBtn');
 
         // Initialize the dashboard
         async function initDashboard() {
+            console.log('Initializing dashboard...');
+            
             // Check if user is already logged in
             const savedToken = localStorage.getItem('adminToken');
             if (savedToken) {
@@ -1012,10 +1024,12 @@
                 if (response.ok) {
                     showDashboard();
                 } else {
+                    localStorage.removeItem('adminToken');
                     showLoginPage();
                 }
             } catch (error) {
                 console.error('Token verification failed:', error);
+                localStorage.removeItem('adminToken');
                 showLoginPage();
             }
         }
@@ -1024,6 +1038,9 @@
         function setupEventListeners() {
             // Login form
             loginForm.addEventListener('submit', handleLogin);
+
+            // Reset password button
+            resetPasswordBtn.addEventListener('click', handleResetPassword);
 
             // Menu toggle
             menuToggle.addEventListener('click', () => {
@@ -1088,6 +1105,9 @@
             e.preventDefault();
             const password = document.getElementById('password').value;
 
+            console.log('Attempting login with password:', password);
+            console.log('API URL:', `${API_BASE_URL}/login`);
+
             try {
                 const response = await fetch(`${API_BASE_URL}/login`, {
                     method: 'POST',
@@ -1097,7 +1117,14 @@
                     body: JSON.stringify({ password })
                 });
 
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const result = await response.json();
+                console.log('Login result:', result);
 
                 if (result.success) {
                     authToken = result.token;
@@ -1109,7 +1136,34 @@
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                alert('Login failed. Please try again.');
+                alert('Login failed. Please check the console for details.');
+            }
+        }
+
+        // Handle reset password
+        async function handleResetPassword() {
+            if (confirm('This will reset the password to "user1234". Continue?')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/reset-password`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            secret: 'admin-reset-2024',
+                            newPassword: 'user1234'
+                        })
+                    });
+
+                    if (response.ok) {
+                        alert('Password reset successfully to: user1234');
+                    } else {
+                        alert('Failed to reset password. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Reset password error:', error);
+                    alert('Error resetting password. Please check the console.');
+                }
             }
         }
 
