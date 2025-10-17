@@ -308,16 +308,19 @@
             background: #f8f9fa;
         }
 
-        .status {
+        .status-badge {
             padding: 5px 10px;
             border-radius: 20px;
             font-size: 0.8rem;
             font-weight: 600;
+            text-transform: capitalize;
         }
 
-        .status.pending { background: #fff3cd; color: #856404; }
-        .status.completed { background: #d1edff; color: #004085; }
-        .status.cancelled { background: #f8d7da; color: #721c24; }
+        .status-badge.active { background: #d1edff; color: #004085; }
+        .status-badge.inactive { background: #f8d7da; color: #721c24; }
+        .status-badge.pending { background: #fff3cd; color: #856404; }
+        .status-badge.completed { background: #d1edff; color: #004085; }
+        .status-badge.cancelled { background: #f8d7da; color: #721c24; }
 
         .action-btn {
             padding: 6px 12px;
@@ -335,6 +338,11 @@
         .action-btn:hover {
             opacity: 0.9;
             transform: translateY(-2px);
+        }
+
+        .action-group {
+            display: flex;
+            gap: 5px;
         }
 
         /* Forms */
@@ -394,6 +402,11 @@
         .btn-primary:hover {
             background: #3251d4;
             transform: translateY(-2px);
+        }
+
+        .btn-block {
+            width: 100%;
+            justify-content: center;
         }
 
         /* Login Page */
@@ -481,26 +494,7 @@
             cursor: pointer;
         }
 
-        /* Image Upload */
-        .image-upload {
-            border: 2px dashed #ddd;
-            border-radius: var(--border-radius);
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .image-upload:hover {
-            border-color: var(--primary);
-        }
-
-        .image-upload i {
-            font-size: 2rem;
-            color: var(--gray);
-            margin-bottom: 10px;
-        }
-
+        /* Image Preview */
         .image-preview {
             max-width: 200px;
             max-height: 200px;
@@ -509,46 +503,55 @@
             object-fit: cover;
         }
 
-        /* Product Images Grid */
-        .images-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
+        /* Product Images */
+        .product-image-table {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
         }
 
-        .image-item {
-            position: relative;
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            height: 100px;
-        }
-
-        .image-item img {
+        /* Modal Styles - محسنة */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
-        }
-
-        .image-actions {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            display: flex;
-            gap: 5px;
-        }
-
-        .image-action {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            display: flex;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
             align-items: center;
             justify-content: center;
-            font-size: 0.7rem;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--border-radius);
+            width: 100%;
+            max-width: 700px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.5rem;
             cursor: pointer;
+            color: var(--gray);
+            z-index: 1;
+        }
+
+        .modal-title {
+            margin-bottom: 20px;
+            color: var(--primary);
+            text-align: center;
         }
 
         /* Menu Toggle Button */
@@ -618,6 +621,9 @@
             .tab {
                 text-align: center;
             }
+            .modal-content {
+                padding: 20px;
+            }
         }
     </style>
 </head>
@@ -650,16 +656,10 @@
                 <div class="form-group">
                     <label for="password">Password</label>
                     <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
-                    <small style="color: #666; margin-top: 5px; display: block;">Default password: user1234</small>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width: 100%;">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
-                <div style="text-align: center; margin-top: 15px;">
-                    <button type="button" id="resetPasswordBtn" style="background: none; border: none; color: var(--primary); cursor: pointer; text-decoration: underline;">
-                        Reset Password
-                    </button>
-                </div>
             </form>
         </div>
     </div>
@@ -693,7 +693,7 @@
                     <i class="fas fa-user"></i>
                     <span>Profile</span>
                 </div>
-                <a href="/" class="menu-item" target="_blank">
+                <a href="https://yacine2007.github.io/My-store/public/index.html" class="menu-item" target="_blank">
                     <i class="fas fa-store"></i>
                     <span>View Store</span>
                 </a>
@@ -1066,11 +1066,11 @@
         </div>
     </div>
 
-    <!-- Product Modal -->
-    <div id="productModal" class="modal" style="display: none;">
+    <!-- Product Modal - محسنة بالكامل -->
+    <div id="productModal" class="modal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
-            <h2 id="productModalTitle">Add Product</h2>
+            <h2 id="productModalTitle" class="modal-title">Add Product</h2>
             <form id="productForm">
                 <input type="hidden" id="productId">
                 <div class="form-group">
@@ -1107,13 +1107,13 @@
                         <option value="false">Inactive</option>
                     </select>
                 </div>
-                <button type="submit" class="btn btn-primary">Save Product</button>
+                <button type="submit" class="btn btn-primary btn-block">Save Product</button>
             </form>
         </div>
     </div>
 
     <script>
-        // API Configuration - FIXED: Use the actual Render domain
+        // API Configuration
         const API_BASE_URL = 'https://my-store-p63u.onrender.com/api';
         
         console.log('API Base URL:', API_BASE_URL);
@@ -1129,12 +1129,13 @@
         const loginPage = document.getElementById('loginPage');
         const dashboard = document.getElementById('dashboard');
         const loginForm = document.getElementById('loginForm');
-        const resetPasswordBtn = document.getElementById('resetPasswordBtn');
         const notification = document.getElementById('notification');
         const notificationClose = document.getElementById('notificationClose');
         const sidebar = document.getElementById('sidebar');
         const menuToggle = document.getElementById('menuToggle');
         const logoutBtn = document.getElementById('logoutBtn');
+        const productModal = document.getElementById('productModal');
+        const closeModal = document.querySelector('.close-modal');
 
         // Show notification
         function showNotification(title, message, type = 'success') {
@@ -1223,9 +1224,6 @@
             // Login form
             loginForm.addEventListener('submit', handleLogin);
 
-            // Reset password button
-            resetPasswordBtn.addEventListener('click', handleResetPassword);
-
             // Menu toggle
             menuToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('active');
@@ -1270,6 +1268,17 @@
 
             // Avatar preview
             document.getElementById('adminAvatar').addEventListener('input', updateAvatarPreview);
+
+            // Close modal events
+            closeModal.addEventListener('click', () => {
+                productModal.style.display = 'none';
+            });
+
+            window.addEventListener('click', (e) => {
+                if (e.target === productModal) {
+                    productModal.style.display = 'none';
+                }
+            });
         }
 
         // Handle login
@@ -1304,33 +1313,6 @@
             } catch (error) {
                 console.error('Login error:', error);
                 showNotification('Error', 'Login failed. Please try again.', 'error');
-            }
-        }
-
-        // Handle reset password
-        async function handleResetPassword() {
-            if (confirm('This will reset the password to "user1234". Continue?')) {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/reset-password`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            secret: 'admin-reset-2024',
-                            newPassword: 'user1234'
-                        })
-                    });
-
-                    if (response.ok) {
-                        showNotification('Success', 'Password reset successfully to: user1234');
-                    } else {
-                        showNotification('Error', 'Failed to reset password', 'error');
-                    }
-                } catch (error) {
-                    console.error('Reset password error:', error);
-                    showNotification('Error', 'Error resetting password', 'error');
-                }
             }
         }
 
@@ -1450,7 +1432,7 @@
                     <td>#${order.id}</td>
                     <td>${order.customerName}</td>
                     <td>${order.total} DA</td>
-                    <td><span class="status ${order.status}">${order.status}</span></td>
+                    <td><span class="status-badge ${order.status}">${order.status}</span></td>
                     <td>${new Date(order.createdAt).toLocaleDateString()}</td>
                     <td>
                         <button class="action-btn btn-primary" onclick="viewOrder(${order.id})">
@@ -1480,7 +1462,7 @@
             }
         }
 
-        // Render products
+        // Render products - محسنة
         function renderProducts() {
             const tbody = document.querySelector('#productsTable tbody');
             tbody.innerHTML = '';
@@ -1492,19 +1474,28 @@
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><img src="${imageUrl}" alt="${product.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"></td>
+                    <td>
+                        <img src="${imageUrl}" alt="${product.name}" class="product-image-table" 
+                             onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'">
+                    </td>
                     <td>${product.name}</td>
                     <td>${product.price} DA</td>
                     <td>${product.quantity}</td>
                     <td>${product.category || 'Uncategorized'}</td>
-                    <td>${product.status ? 'Active' : 'Inactive'}</td>
                     <td>
-                        <button class="action-btn btn-primary" onclick="editProduct(${product.id})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="action-btn btn-danger" onclick="deleteProduct(${product.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <span class="status-badge ${product.status ? 'active' : 'inactive'}">
+                            ${product.status ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-group">
+                            <button class="action-btn btn-primary" onclick="editProduct(${product.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="action-btn btn-danger" onclick="deleteProduct(${product.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -1543,7 +1534,7 @@
                     <td>${order.address.substring(0, 30)}...</td>
                     <td>${order.total} DA</td>
                     <td>
-                        <select onchange="updateOrderStatus(${order.id}, this.value)" class="status ${order.status}">
+                        <select onchange="updateOrderStatus(${order.id}, this.value)" class="form-control">
                             <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
                             <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
                             <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
@@ -1760,7 +1751,7 @@
                 });
 
                 if (response.ok) {
-                    showNotification('Success', 'Settings saved successfully!');
+                    showNotification('Success', 'Settings saved successfully! The changes will be applied to the store immediately.');
                 } else {
                     showNotification('Error', 'Failed to save settings', 'error');
                 }
@@ -1843,7 +1834,7 @@
             }
         }
 
-        // Open product modal
+        // Open product modal - محسنة
         function openProductModal(product = null) {
             const modal = document.getElementById('productModal');
             const title = document.getElementById('productModalTitle');
@@ -1868,17 +1859,17 @@
             modal.style.display = 'flex';
         }
 
-        // Handle product save
+        // Handle product save - محسنة
         async function handleProductSave(e) {
             e.preventDefault();
             
             const productData = {
                 name: document.getElementById('productName').value,
                 description: document.getElementById('productDescription').value,
-                price: document.getElementById('productPrice').value,
-                quantity: document.getElementById('productQuantity').value,
+                price: parseFloat(document.getElementById('productPrice').value),
+                quantity: parseInt(document.getElementById('productQuantity').value),
                 category: document.getElementById('productCategory').value,
-                status: document.getElementById('productStatus').value,
+                status: document.getElementById('productStatus').value === 'true',
                 images: document.getElementById('productImages').value.split('\n').filter(url => url.trim() !== '')
             };
 
@@ -1903,7 +1894,7 @@
                 if (response.ok) {
                     showNotification('Success', 'Product saved successfully!');
                     document.getElementById('productModal').style.display = 'none';
-                    loadProducts();
+                    await loadProducts(); // إعادة تحميل المنتجات للتأكد من تحديث البيانات
                 } else {
                     showNotification('Error', 'Failed to save product', 'error');
                 }
@@ -1937,7 +1928,7 @@
 
                 if (response.ok) {
                     showNotification('Success', 'Product deleted successfully!');
-                    loadProducts();
+                    await loadProducts(); // إعادة تحميل المنتجات بعد الحذف
                 } else {
                     showNotification('Error', 'Failed to delete product', 'error');
                 }
@@ -1983,19 +1974,6 @@
 
         // Initialize the dashboard when page loads
         document.addEventListener('DOMContentLoaded', initDashboard);
-
-        // Close modal when clicking outside
-        document.addEventListener('click', (e) => {
-            const modal = document.getElementById('productModal');
-            if (e.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-
-        // Close modal when clicking close button
-        document.querySelector('#productModal .close-modal').addEventListener('click', () => {
-            document.getElementById('productModal').style.display = 'none';
-        });
     </script>
 </body>
 </html>
