@@ -5,8 +5,6 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
-const axios = require('axios');
-const FormData = require('form-data');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,7 +21,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB
+    fileSize: 10 * 1024 * 1024 // 10MB
   }
 });
 
@@ -105,6 +103,7 @@ const readData = async () => {
 const writeData = async (data) => {
   try {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
+    console.log('Data saved successfully to data.json');
     return true;
   } catch (error) {
     console.error('Error writing data:', error);
@@ -112,24 +111,16 @@ const writeData = async (data) => {
   }
 };
 
-// رفع الصور إلى ImgBB
-async function uploadToImgBB(imageBuffer) {
+// رفع الصور - استخدام Base64 مباشرة
+async function uploadImage(imageBuffer) {
   try {
-    const formData = new FormData();
-    formData.append('image', imageBuffer.toString('base64'));
-    
-    const response = await axios.post('https://api.imgbb.com/1/upload?key=YOUR_IMGBB_API_KEY', formData, {
-      headers: formData.getHeaders()
-    });
-    
-    if (response.data.success) {
-      return response.data.data.url;
-    }
-    throw new Error('Failed to upload image');
+    // تحويل الصورة إلى Base64
+    const base64Image = imageBuffer.toString('base64');
+    const imageUrl = `data:image/jpeg;base64,${base64Image}`;
+    return imageUrl;
   } catch (error) {
     console.error('Image upload error:', error);
-    // إذا فشل الرفع، نستخدم خدمة بديلة
-    return `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+    throw new Error('Failed to process image');
   }
 }
 
@@ -170,7 +161,7 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const imageUrl = await uploadToImgBB(req.file.buffer);
+    const imageUrl = await uploadImage(req.file.buffer);
     
     res.json({ 
       success: true, 
@@ -190,7 +181,9 @@ app.get('/api/debug', async (req, res) => {
       res.json({
         hasData: true,
         userExists: !!data.user,
-        settings: data.settings
+        settings: data.settings,
+        productsCount: data.products.length,
+        ordersCount: data.orders.length
       });
     } else {
       res.json({ hasData: false });
@@ -288,49 +281,59 @@ app.get('/api/settings', async (req, res) => {
 
 // Update settings
 app.put('/api/settings', authenticateToken, async (req, res) => {
-  const settings = req.body;
-  const data = await readData();
+  try {
+    const settings = req.body;
+    const data = await readData();
 
-  if (!data) {
-    return res.status(500).json({ error: 'Server error' });
-  }
+    if (!data) {
+      return res.status(500).json({ error: 'Server error' });
+    }
 
-  data.settings = { ...data.settings, ...settings };
-  const success = await writeData(data);
+    data.settings = { ...data.settings, ...settings };
+    const success = await writeData(data);
 
-  if (success) {
-    res.json({ success: true, message: 'Settings updated successfully', settings: data.settings });
-  } else {
-    res.status(500).json({ error: 'Failed to update settings' });
+    if (success) {
+      res.json({ success: true, message: 'Settings updated successfully', settings: data.settings });
+    } else {
+      res.status(500).json({ error: 'Failed to update settings' });
+    }
+  } catch (error) {
+    console.error('Update settings error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
 // Update user profile
 app.put('/api/user/profile', authenticateToken, async (req, res) => {
-  const { name, avatar } = req.body;
-  const data = await readData();
+  try {
+    const { name, avatar } = req.body;
+    const data = await readData();
 
-  if (!data) {
-    return res.status(500).json({ error: 'Server error' });
-  }
+    if (!data) {
+      return res.status(500).json({ error: 'Server error' });
+    }
 
-  data.user.name = name || data.user.name;
-  data.user.avatar = avatar || data.user.avatar;
+    data.user.name = name || data.user.name;
+    data.user.avatar = avatar || data.user.avatar;
 
-  const success = await writeData(data);
+    const success = await writeData(data);
 
-  if (success) {
-    res.json({ 
-      success: true, 
-      message: 'Profile updated successfully',
-      user: {
-        name: data.user.name,
-        role: data.user.role,
-        avatar: data.user.avatar
-      }
-    });
-  } else {
-    res.status(500).json({ error: 'Failed to update profile' });
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'Profile updated successfully',
+        user: {
+          name: data.user.name,
+          role: data.user.role,
+          avatar: data.user.avatar
+        }
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to update profile' });
+    }
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -366,7 +369,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
       price: parseFloat(productData.price),
       quantity: parseInt(productData.quantity),
       category: productData.category,
-      status: productData.status === 'true',
+      status: productData.status !== undefined ? productData.status : true, // افتراضي مفعل
       images: productData.images || [],
       createdAt: new Date().toISOString()
     };
@@ -408,7 +411,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
       price: parseFloat(productData.price),
       quantity: parseInt(productData.quantity),
       category: productData.category,
-      status: productData.status === 'true',
+      status: productData.status !== undefined ? productData.status : true,
       images: productData.images || data.products[productIndex].images
     };
 
@@ -589,31 +592,14 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// Reset password endpoint
-app.post('/api/reset-password', async (req, res) => {
-  const { secret, newPassword } = req.body;
-  
-  if (secret !== 'admin-reset-2024') {
-    return res.status(403).json({ error: 'Invalid secret' });
-  }
-
-  const data = await readData();
-  if (!data) {
-    return res.status(500).json({ error: 'Server error' });
-  }
-
+// Reset data endpoint (للتطوير فقط)
+app.post('/api/reset-data', authenticateToken, async (req, res) => {
   try {
-    data.user.password = await bcrypt.hash(newPassword || 'user1234', 10);
-    const success = await writeData(data);
-
-    if (success) {
-      res.json({ success: true, message: 'Password reset successfully' });
-    } else {
-      res.status(500).json({ error: 'Failed to reset password' });
-    }
+    await initializeDataFile();
+    res.json({ success: true, message: 'Data reset successfully' });
   } catch (error) {
-    console.error('Password reset error:', error);
-    res.status(500).json({ error: 'Server error during password reset' });
+    console.error('Reset data error:', error);
+    res.status(500).json({ error: 'Failed to reset data' });
   }
 });
 
@@ -638,6 +624,7 @@ const startServer = async () => {
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
+      console.log(`📊 Data file: ${DATA_FILE}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
