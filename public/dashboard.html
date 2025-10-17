@@ -642,7 +642,7 @@
     <div id="loginPage" class="login-container">
         <div class="login-box">
             <div class="login-logo">
-                <img src="https://raw.githubusercontent.com/Yacine2007/My-store/main/logo.png" alt="B.Y PRO Logo">
+                <img src="https://raw.githubusercontent.com/Yacine2007/My-store/main/logo.png" alt="B.Y PRO Logo" onerror="this.src='https://via.placeholder.com/60x60?text=LOGO'">
                 <h1>My Store</h1>
             </div>
             <h2 class="login-title">Admin Login</h2>
@@ -1113,9 +1113,11 @@
     </div>
 
     <script>
-        // API Configuration
-        const API_BASE_URL = window.location.origin + '/api';
+        // API Configuration - FIXED: Use the actual Render domain
+        const API_BASE_URL = 'https://my-store-p63u.onrender.com/api';
         
+        console.log('API Base URL:', API_BASE_URL);
+
         // Global variables
         let authToken = '';
         let currentUser = {};
