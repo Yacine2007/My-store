@@ -4,6 +4,9 @@ const fs = require('fs').promises;
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const axios = require('axios');
+const FormData = require('form-data');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +17,15 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
+
+// تكوين multer لرفع الملفات
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB
+  }
+});
 
 // Data file path
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -65,30 +77,7 @@ const initializeDataFile = async () => {
         avatar: "https://raw.githubusercontent.com/Yacine2007/My-store/main/admin-avatar.png",
         password: hashedPassword
       },
-      products: [
-        {
-          id: 1,
-          name: "Smart Watch",
-          description: "Latest smart watch with health monitoring features",
-          price: 25000,
-          quantity: 15,
-          category: "Electronics",
-          status: true,
-          images: ["https://raw.githubusercontent.com/Yacine2007/My-store/main/prdct/0001.png"],
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          name: "Wireless Headphones",
-          description: "High-quality wireless headphones with noise cancellation",
-          price: 18000,
-          quantity: 25,
-          category: "Electronics",
-          status: true,
-          images: ["https://raw.githubusercontent.com/Yacine2007/My-store/main/prdct/0002.png"],
-          createdAt: new Date().toISOString()
-        }
-      ],
+      products: [], // إزالة المنتجات المثال
       orders: [],
       analytics: {
         visitors: 0,
@@ -123,6 +112,27 @@ const writeData = async (data) => {
   }
 };
 
+// رفع الصور إلى ImgBB
+async function uploadToImgBB(imageBuffer) {
+  try {
+    const formData = new FormData();
+    formData.append('image', imageBuffer.toString('base64'));
+    
+    const response = await axios.post('https://api.imgbb.com/1/upload?key=YOUR_IMGBB_API_KEY', formData, {
+      headers: formData.getHeaders()
+    });
+    
+    if (response.data.success) {
+      return response.data.data.url;
+    }
+    throw new Error('Failed to upload image');
+  } catch (error) {
+    console.error('Image upload error:', error);
+    // إذا فشل الرفع، نستخدم خدمة بديلة
+    return `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+  }
+}
+
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -151,6 +161,25 @@ app.get('/admin', (req, res) => {
 // Serve store frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// رفع الصور
+app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    const imageUrl = await uploadToImgBB(req.file.buffer);
+    
+    res.json({ 
+      success: true, 
+      imageUrl: imageUrl 
+    });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
+  }
 });
 
 // Debug endpoint
