@@ -12,44 +12,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
-
-// Ensure uploads directory exists
-const ensureUploadsDir = async () => {
-  try {
-    await fs.access('uploads');
-  } catch {
-    await fs.mkdir('uploads', { recursive: true });
-  }
-};
-
-// Multer configuration for file uploads
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    await ensureUploadsDir();
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
-    }
-  }
-});
 
 // Data file path
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -62,10 +27,7 @@ const initializeDataFile = async () => {
   } catch {
     console.log('Creating initial data file...');
     
-    // Create hashed password for 'user1234'
     const hashedPassword = await bcrypt.hash('user1234', 10);
-    console.log('Hashed password created:', hashedPassword);
-    
     const initialData = {
       settings: {
         storeName: "My Store",
@@ -77,7 +39,9 @@ const initializeDataFile = async () => {
         theme: {
           primary: "#4361ee",
           secondary: "#3a0ca3",
-          accent: "#f72585"
+          accent: "#f72585",
+          background: "#ffffff",
+          text: "#212529"
         },
         contact: {
           phone: "+213 123 456 789",
@@ -88,19 +52,44 @@ const initializeDataFile = async () => {
           workingDays: "Saturday - Thursday"
         },
         social: {
-          facebook: "",
-          twitter: "",
-          instagram: "",
-          youtube: ""
-        }
+          facebook: "https://facebook.com",
+          twitter: "https://twitter.com",
+          instagram: "https://instagram.com",
+          youtube: "https://youtube.com"
+        },
+        logo: "https://raw.githubusercontent.com/Yacine2007/My-store/main/logo.png",
+        favicon: "https://raw.githubusercontent.com/Yacine2007/My-store/main/favicon.png"
       },
       user: {
         name: "Admin User",
         role: "System Administrator",
-        avatar: "default-avatar.png",
+        avatar: "https://raw.githubusercontent.com/Yacine2007/My-store/main/admin-avatar.png",
         password: hashedPassword
       },
-      products: [],
+      products: [
+        {
+          id: 1,
+          name: "Smart Watch",
+          description: "Latest smart watch with health monitoring features",
+          price: 25000,
+          quantity: 15,
+          category: "Electronics",
+          status: true,
+          images: ["https://raw.githubusercontent.com/Yacine2007/My-store/main/prdct/0001.png"],
+          createdAt: new Date().toISOString()
+        },
+        {
+          id: 2,
+          name: "Wireless Headphones",
+          description: "High-quality wireless headphones with noise cancellation",
+          price: 18000,
+          quantity: 25,
+          category: "Electronics",
+          status: true,
+          images: ["https://raw.githubusercontent.com/Yacine2007/My-store/main/prdct/0002.png"],
+          createdAt: new Date().toISOString()
+        }
+      ],
       orders: [],
       analytics: {
         visitors: 0,
@@ -157,15 +146,15 @@ const authenticateToken = (req, res, next) => {
 
 // Serve dashboard
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
 // Serve store frontend
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Debug endpoint to check data
+// Debug endpoint
 app.get('/api/debug', async (req, res) => {
   try {
     const data = await readData();
@@ -173,8 +162,6 @@ app.get('/api/debug', async (req, res) => {
       res.json({
         hasData: true,
         userExists: !!data.user,
-        hasPassword: !!data.user?.password,
-        passwordLength: data.user?.password?.length,
         settings: data.settings
       });
     } else {
@@ -189,8 +176,6 @@ app.get('/api/debug', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   const { password } = req.body;
   
-  console.log('Login attempt with password:', password);
-  
   if (!password) {
     return res.status(400).json({ error: 'Password is required' });
   }
@@ -198,20 +183,14 @@ app.post('/api/login', async (req, res) => {
   const data = await readData();
 
   if (!data || !data.user) {
-    console.log('No data or user found');
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
   try {
-    console.log('Stored password hash:', data.user.password);
-    console.log('Password length:', data.user.password?.length);
-    
     const isValid = await bcrypt.compare(password, data.user.password);
-    console.log('Password validation result:', isValid);
     
     if (isValid) {
       const token = jwt.sign({ userId: 1 }, JWT_SECRET, { expiresIn: '24h' });
-      console.log('Login successful, token generated');
       res.json({ 
         success: true, 
         token,
@@ -222,7 +201,6 @@ app.post('/api/login', async (req, res) => {
         }
       });
     } else {
-      console.log('Invalid password');
       res.status(401).json({ error: 'Invalid password' });
     }
   } catch (error) {
@@ -293,15 +271,15 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
   const success = await writeData(data);
 
   if (success) {
-    res.json({ success: true, message: 'Settings updated successfully' });
+    res.json({ success: true, message: 'Settings updated successfully', settings: data.settings });
   } else {
     res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 
 // Update user profile
-app.put('/api/user/profile', authenticateToken, upload.single('avatar'), async (req, res) => {
-  const { name } = req.body;
+app.put('/api/user/profile', authenticateToken, async (req, res) => {
+  const { name, avatar } = req.body;
   const data = await readData();
 
   if (!data) {
@@ -309,10 +287,7 @@ app.put('/api/user/profile', authenticateToken, upload.single('avatar'), async (
   }
 
   data.user.name = name || data.user.name;
-
-  if (req.file) {
-    data.user.avatar = req.file.filename;
-  }
+  data.user.avatar = avatar || data.user.avatar;
 
   const success = await writeData(data);
 
@@ -347,7 +322,7 @@ app.get('/api/products', async (req, res) => {
 });
 
 // Add product
-app.post('/api/products', authenticateToken, upload.array('images', 5), async (req, res) => {
+app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const productData = req.body;
     const data = await readData();
@@ -364,7 +339,7 @@ app.post('/api/products', authenticateToken, upload.array('images', 5), async (r
       quantity: parseInt(productData.quantity),
       category: productData.category,
       status: productData.status === 'true',
-      images: req.files ? req.files.map(file => file.filename) : [],
+      images: productData.images || [],
       createdAt: new Date().toISOString()
     };
 
@@ -383,7 +358,7 @@ app.post('/api/products', authenticateToken, upload.array('images', 5), async (r
 });
 
 // Update product
-app.put('/api/products/:id', authenticateToken, upload.array('images', 5), async (req, res) => {
+app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
     const productData = req.body;
@@ -405,12 +380,9 @@ app.put('/api/products/:id', authenticateToken, upload.array('images', 5), async
       price: parseFloat(productData.price),
       quantity: parseInt(productData.quantity),
       category: productData.category,
-      status: productData.status === 'true'
+      status: productData.status === 'true',
+      images: productData.images || data.products[productIndex].images
     };
-
-    if (req.files && req.files.length > 0) {
-      data.products[productIndex].images = req.files.map(file => file.filename);
-    }
 
     const success = await writeData(data);
 
@@ -589,11 +561,10 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// Reset password endpoint (for emergency use)
+// Reset password endpoint
 app.post('/api/reset-password', async (req, res) => {
   const { secret, newPassword } = req.body;
   
-  // Simple secret for emergency reset
   if (secret !== 'admin-reset-2024') {
     return res.status(403).json({ error: 'Invalid secret' });
   }
@@ -633,14 +604,12 @@ app.use((req, res) => {
 const startServer = async () => {
   try {
     await initializeDataFile();
-    await ensureUploadsDir();
     
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
-      console.log(`🐛 Debug: http://localhost:${PORT}/api/debug`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
