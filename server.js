@@ -19,7 +19,7 @@ app.use(express.static('public'));
 // تكوين multer لرفع الملفات - إصلاح التخزين
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadsDir = path.join(__dirname, 'uploads');
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
     // إنشاء مجلد التحميلات إذا لم يكن موجوداً
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -53,7 +53,7 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 
 // إنشاء مجلد التحميلات إذا لم يكن موجوداً
 const ensureUploadsDir = async () => {
-  const uploadsDir = path.join(__dirname, 'uploads');
+  const uploadsDir = path.join(__dirname, 'public', 'uploads');
   try {
     await fs.access(uploadsDir);
   } catch (error) {
@@ -133,36 +133,7 @@ const initializeDataFile = async () => {
 const readData = async () => {
   try {
     const data = await fs.readFile(DATA_FILE, 'utf8');
-    const parsedData = JSON.parse(data);
-    
-    // تأكد من وجود جميع الحقول الأساسية
-    if (!parsedData.user) {
-      console.log('🔄 Creating missing user field');
-      parsedData.user = {
-        name: "Admin User",
-        role: "System Administrator",
-        avatar: "",
-        password: await bcrypt.hash('user1234', 10)
-      };
-    }
-    
-    if (!parsedData.settings) {
-      console.log('🔄 Creating missing settings field');
-      parsedData.settings = {
-        storeName: "My Store",
-        heroTitle: "Welcome to Our Store",
-        heroDescription: "Discover our amazing products with great offers and fast delivery.",
-        currency: "DA",
-        language: "en",
-        storeStatus: true
-      };
-    }
-    
-    if (!parsedData.products) parsedData.products = [];
-    if (!parsedData.orders) parsedData.orders = [];
-    if (!parsedData.analytics) parsedData.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
-    
-    return parsedData;
+    return JSON.parse(data);
   } catch (error) {
     console.error('❌ Error reading data:', error);
     return null;
@@ -172,16 +143,7 @@ const readData = async () => {
 // Write data to file
 const writeData = async (data) => {
   try {
-    // تأكد من وجود جميع الحقول الأساسية قبل الحفظ
-    const completeData = {
-      settings: data.settings || {},
-      user: data.user || {},
-      products: data.products || [],
-      orders: data.orders || [],
-      analytics: data.analytics || { visitors: 0, ordersCount: 0, revenue: 0 }
-    };
-    
-    await fs.writeFile(DATA_FILE, JSON.stringify(completeData, null, 2));
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
     console.log('✅ Data saved successfully to data.json');
     return true;
   } catch (error) {
@@ -189,6 +151,49 @@ const writeData = async (data) => {
     return false;
   }
 };
+
+// خدمة ملفات التحميلات
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+    req.user = user;
+    next();
+  });
+};
+
+// Routes
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    message: 'Server is running correctly'
+  });
+});
+
+// Serve dashboard
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Serve store frontend
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // رفع الصور - إصلاح النظام
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
@@ -236,55 +241,11 @@ app.post('/api/upload-public', upload.single('image'), async (req, res) => {
   }
 });
 
-// خدمة ملفات التحميلات
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
-// Routes
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    message: 'Server is running correctly',
-    uploadsDir: path.join(__dirname, 'uploads')
-  });
-});
-
-// Serve dashboard
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-// Serve store frontend
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
 // Debug endpoint
 app.get('/api/debug', async (req, res) => {
   try {
     const data = await readData();
-    const uploadsDir = path.join(__dirname, 'uploads');
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
     const uploadsExist = fs.existsSync(uploadsDir);
     
     if (data) {
@@ -292,8 +253,8 @@ app.get('/api/debug', async (req, res) => {
         hasData: true,
         userExists: !!data.user,
         settings: data.settings,
-        productsCount: data.products.length,
-        ordersCount: data.orders.length,
+        productsCount: data.products ? data.products.length : 0,
+        ordersCount: data.orders ? data.orders.length : 0,
         uploadsDirExists: uploadsExist,
         filePath: DATA_FILE
       });
@@ -341,9 +302,6 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ error: 'Server error during login' });
   }
 });
-
-// باقي ال endpoints تبقى كما هي بدون تغيير...
-// [يتبع باقي الكود كما هو بدون تغيير في دوال products, orders, settings, etc.]
 
 // Change password
 app.put('/api/user/password', authenticateToken, async (req, res) => {
@@ -492,29 +450,34 @@ app.get('/api/products', async (req, res) => {
   try {
     const data = await readData();
     if (data && data.products) {
-      // إصلاح روابط الصور
-      const productsWithFixedImages = data.products.map(product => {
-        if (product.images && Array.isArray(product.images)) {
-          product.images = product.images.map(img => {
-            if (img.startsWith('data:image')) {
-              return img; // إذا كانت base64 تبقى كما هي
-            }
-            // إذا كانت اسم ملف فقط، أضف المسار
-            if (!img.startsWith('http') && !img.startsWith('/')) {
-              return `/uploads/${img}`;
-            }
-            return img;
-          });
-        }
-        return product;
-      });
-      
-      res.json(productsWithFixedImages);
+      res.json(data.products);
     } else {
       res.status(500).json({ error: 'Failed to load products' });
     }
   } catch (error) {
     console.error('❌ Products error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get single product
+app.get('/api/products/:id', authenticateToken, async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const data = await readData();
+
+    if (!data || !data.products) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    const product = data.products.find(p => p.id === productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error('❌ Get product error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -532,14 +495,15 @@ app.post('/api/products', authenticateToken, async (req, res) => {
     const newProduct = {
       id: Date.now(),
       name: productData.name,
-      description: productData.description,
+      description: productData.description || '',
       price: parseFloat(productData.price),
       quantity: parseInt(productData.quantity),
-      category: productData.category,
+      category: productData.category || '',
       status: productData.status !== undefined ? productData.status : true,
       deliveryAvailable: productData.deliveryAvailable !== undefined ? productData.deliveryAvailable : true,
       images: productData.images || [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     if (!data.products) {
@@ -550,13 +514,14 @@ app.post('/api/products', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
+      console.log('✅ Product added successfully:', newProduct);
       res.json({ success: true, product: newProduct });
     } else {
       res.status(500).json({ error: 'Failed to add product' });
     }
   } catch (error) {
     console.error('❌ Add product error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -579,25 +544,27 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     data.products[productIndex] = {
       ...data.products[productIndex],
       name: productData.name,
-      description: productData.description,
+      description: productData.description || '',
       price: parseFloat(productData.price),
       quantity: parseInt(productData.quantity),
-      category: productData.category,
+      category: productData.category || '',
       status: productData.status !== undefined ? productData.status : true,
       deliveryAvailable: productData.deliveryAvailable !== undefined ? productData.deliveryAvailable : true,
-      images: productData.images || data.products[productIndex].images
+      images: productData.images || data.products[productIndex].images,
+      updatedAt: new Date().toISOString()
     };
 
     const success = await writeData(data);
 
     if (success) {
+      console.log('✅ Product updated successfully:', data.products[productIndex]);
       res.json({ success: true, product: data.products[productIndex] });
     } else {
       res.status(500).json({ error: 'Failed to update product' });
     }
   } catch (error) {
     console.error('❌ Update product error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -611,10 +578,16 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Server error' });
     }
 
-    data.products = data.products.filter(p => p.id !== productId);
+    const productIndex = data.products.findIndex(p => p.id === productId);
+    if (productIndex === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const deletedProduct = data.products.splice(productIndex, 1)[0];
     const success = await writeData(data);
 
     if (success) {
+      console.log('✅ Product deleted successfully:', deletedProduct);
       res.json({ success: true, message: 'Product deleted successfully' });
     } else {
       res.status(500).json({ error: 'Failed to delete product' });
@@ -640,6 +613,28 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
   }
 });
 
+// Get single order
+app.get('/api/orders/:id', authenticateToken, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+    const data = await readData();
+
+    if (!data || !data.orders) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+
+    const order = data.orders.find(o => o.id === orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error('❌ Get order error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Create order
 app.post('/api/orders', async (req, res) => {
   try {
@@ -652,15 +647,16 @@ app.post('/api/orders', async (req, res) => {
 
     const newOrder = {
       id: Date.now(),
-      items: orderData.items,
+      items: orderData.items || [],
       customerName: orderData.customerName,
-      description: orderData.description,
-      address: orderData.address,
+      description: orderData.description || '',
+      address: orderData.address || '',
       phone: orderData.phone,
       deliveryOption: orderData.deliveryOption || 'delivery',
       status: 'pending',
-      total: orderData.total || orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-      createdAt: new Date().toISOString()
+      total: orderData.total || (orderData.items ? orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) : 0),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     if (!data.orders) {
@@ -670,19 +666,23 @@ app.post('/api/orders', async (req, res) => {
     data.orders.push(newOrder);
     
     // تحديث الإحصائيات
+    if (!data.analytics) {
+      data.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
+    }
     data.analytics.ordersCount += 1;
     data.analytics.revenue += newOrder.total;
 
     const success = await writeData(data);
 
     if (success) {
+      console.log('✅ Order created successfully:', newOrder);
       res.json({ success: true, orderId: newOrder.id });
     } else {
       res.status(500).json({ error: 'Failed to create order' });
     }
   } catch (error) {
     console.error('❌ Create order error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -704,6 +704,12 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
 
     const oldStatus = order.status;
     order.status = status;
+    order.updatedAt = new Date().toISOString();
+
+    // تحديث الإحصائيات بناءً على تغيير الحالة
+    if (!data.analytics) {
+      data.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
+    }
 
     // إذا تم تغيير الحالة إلى "مكتمل" ولم يكن مكتملاً من قبل، أضف الإيرادات
     if (status === 'completed' && oldStatus !== 'completed') {
@@ -712,13 +718,14 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     }
     // إذا تم تغيير الحالة من "مكتمل" إلى حالة أخرى، اطرح الإيرادات
     else if (oldStatus === 'completed' && status !== 'completed') {
-      data.analytics.ordersCount -= 1;
-      data.analytics.revenue -= order.total;
+      data.analytics.ordersCount = Math.max(0, data.analytics.ordersCount - 1);
+      data.analytics.revenue = Math.max(0, data.analytics.revenue - order.total);
     }
 
     const success = await writeData(data);
 
     if (success) {
+      console.log('✅ Order status updated successfully:', order);
       res.json({ success: true, message: 'Order status updated successfully' });
     } else {
       res.status(500).json({ error: 'Failed to update order status' });
@@ -820,9 +827,10 @@ const startServer = async () => {
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
-      console.log(`📁 Uploads directory: ${path.join(__dirname, 'uploads')}`);
+      console.log(`📁 Uploads directory: ${path.join(__dirname, 'public', 'uploads')}`);
       console.log(`📊 Data file: ${DATA_FILE}`);
       console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
+      console.log(`🐛 Debug: http://localhost:${PORT}/api/debug`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
