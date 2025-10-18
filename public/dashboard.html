@@ -1199,6 +1199,214 @@
                         </form>
                     </div>
                 </div>
+
+
+
+<!-- إضافة هذا الكود في نهاية قسم Settings Tab في dashboard.html -->
+<div class="content-section" style="border-left: 4px solid #e63946; margin-top: 30px;">
+    <div class="section-header">
+        <h2 style="color: #e63946;">
+            <i class="fas fa-exclamation-triangle"></i> Danger Zone
+        </h2>
+    </div>
+    <div class="section-content">
+        <div style="background: #fff5f5; border: 1px solid #fed7d7; border-radius: 8px; padding: 20px;">
+            <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 20px;">
+                <div style="color: #e53e3e; font-size: 24px;">
+                    <i class="fas fa-radiation"></i>
+                </div>
+                <div>
+                    <h3 style="color: #c53030; margin-bottom: 8px;">Reset Store Data</h3>
+                    <p style="color: #742a2a; line-height: 1.5; margin-bottom: 15px;">
+                        This action will permanently delete all products, orders, analytics data, and reset store settings to default. 
+                        <strong>This action cannot be undone!</strong>
+                    </p>
+                    <div style="background: #fed7d7; border-left: 4px solid #e53e3e; padding: 12px 15px; border-radius: 4px;">
+                        <div style="display: flex; align-items: center; gap: 10px; color: #742a2a;">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <span><strong>Warning:</strong> All your data will be lost including customer orders and product information.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2d3748;">
+                        Type "RESET" to confirm:
+                    </label>
+                    <input 
+                        type="text" 
+                        id="resetConfirmInput" 
+                        style="width: 200px; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 16px; text-transform: uppercase;"
+                        placeholder="Type RESET here"
+                    >
+                    <div style="font-size: 12px; color: #718096; margin-top: 5px;">
+                        Must be typed in uppercase letters
+                    </div>
+                </div>
+                
+                <button 
+                    id="resetStoreBtn" 
+                    style="
+                        background: #e53e3e;
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 6px;
+                        font-weight: 600;
+                        cursor: not-allowed;
+                        opacity: 0.6;
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        width: fit-content;
+                    "
+                    disabled
+                >
+                    <i class="fas fa-bomb"></i>
+                    Reset Store Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// JavaScript لإعادة ضبط المتجر
+document.addEventListener('DOMContentLoaded', function() {
+    const resetConfirmInput = document.getElementById('resetConfirmInput');
+    const resetStoreBtn = document.getElementById('resetStoreBtn');
+    let resetTimeout = null;
+
+    // التحقق من صحة الإدخال
+    resetConfirmInput.addEventListener('input', function(e) {
+        const value = e.target.value.trim();
+        const isConfirmed = value === 'RESET';
+        
+        if (isConfirmed) {
+            resetStoreBtn.style.background = '#c53030';
+            resetStoreBtn.style.cursor = 'pointer';
+            resetStoreBtn.style.opacity = '1';
+            resetStoreBtn.disabled = false;
+        } else {
+            resetStoreBtn.style.background = '#e53e3e';
+            resetStoreBtn.style.cursor = 'not-allowed';
+            resetStoreBtn.style.opacity = '0.6';
+            resetStoreBtn.disabled = true;
+        }
+    });
+
+    // إعادة الضبط
+    resetStoreBtn.addEventListener('click', async function() {
+        if (resetConfirmInput.value.trim() !== 'RESET') {
+            return;
+        }
+
+        // تأكيد نهائي
+        const finalConfirm = confirm(`🚨 FINAL WARNING 🚨\n\nYou are about to:\n• Delete ALL products\n• Delete ALL orders\n• Reset ALL analytics\n• Reset store settings\n• Keep admin profile\n\nThis action is PERMANENT and cannot be undone!\n\nClick OK to proceed or Cancel to abort.`);
+        
+        if (!finalConfirm) {
+            return;
+        }
+
+        // إظهار تحميل
+        resetStoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+        resetStoreBtn.disabled = true;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/reset-data`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // إعادة تعيين الحقول
+                resetConfirmInput.value = '';
+                resetStoreBtn.innerHTML = '<i class="fas fa-check"></i> Reset Complete!';
+                resetStoreBtn.style.background = '#38a169';
+                
+                // إظهار إشعار النجاح
+                showNotification('Store Reset', 'All data has been reset successfully! The page will reload in 3 seconds.', 'success');
+                
+                // إعادة تحميل الصفحة بعد 3 ثواني
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+                
+            } else {
+                throw new Error(result.error || 'Reset failed');
+            }
+        } catch (error) {
+            console.error('Reset error:', error);
+            resetStoreBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Reset Failed';
+            resetStoreBtn.style.background = '#e53e3e';
+            showNotification('Reset Failed', 'Failed to reset store data: ' + error.message, 'error');
+            
+            // إعادة تعيين الزر بعد 3 ثواني
+            setTimeout(() => {
+                resetStoreBtn.innerHTML = '<i class="fas fa-bomb"></i> Reset Store Data';
+                resetStoreBtn.disabled = false;
+            }, 3000);
+        }
+    });
+
+    // منع النسخ واللصق في حقل التأكيد
+    resetConfirmInput.addEventListener('paste', function(e) {
+        e.preventDefault();
+        showNotification('Action Not Allowed', 'Please type "RESET" manually to confirm.', 'warning');
+    });
+
+    // منع الكتابة بالأحرف الصغيرة
+    resetConfirmInput.addEventListener('keypress', function(e) {
+        const char = String.fromCharCode(e.keyCode || e.which);
+        if (char >= 'a' && char <= 'z') {
+            e.preventDefault();
+            showNotification('Uppercase Required', 'Please type in UPPERCASE letters only.', 'warning');
+        }
+    });
+});
+
+// إضافة CSS إضافي للتنسيق
+const style = document.createElement('style');
+style.textContent = `
+    #resetConfirmInput:focus {
+        border-color: #e53e3e !important;
+        box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1) !important;
+        outline: none;
+    }
+    
+    #resetStoreBtn:hover:not(:disabled) {
+        background: #9b2c2c !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.3);
+    }
+    
+    #resetStoreBtn:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    .reset-confirm-required {
+        animation: shake 0.5s ease-in-out;
+    }
+    
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+
+
+                
             </div>
 
             <!-- Profile Tab -->
@@ -2836,4 +3044,5 @@
 </script>
 </body>
 </html>
+
 
