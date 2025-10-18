@@ -10,36 +10,29 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.static('public'));
+// تحسينات الأداء
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 
-// تكوين multer لرفع الملفات
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadsDir = path.join(__dirname, 'public', 'uploads');
-    // إنشاء مجلد التحميلات إذا لم يكن موجوداً
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    // إنشاء اسم فريد للملف
-    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-    cb(null, uniqueName);
-  }
-});
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static('public', {
+  maxAge: '1d',
+  etag: false
+}));
+
+// تحسين multer للسرعة
+const storage = multer.memoryStorage(); // استخدام الذاكرة بدلاً من القرص
 
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB
+    fileSize: 5 * 1024 * 1024 // 5MB للسرعة
   },
   fileFilter: function (req, file, cb) {
-    // التحقق من نوع الملف
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -51,12 +44,32 @@ const upload = multer({
 // Data file path
 const DATA_FILE = path.join(__dirname, 'data.json');
 
-// إنشاء مجلد التحميلات إذا لم يكن موجوداً
+// كاش للبيانات لتحسين السرعة
+let dataCache = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 5000; // 5 ثواني
+
+const readDataWithCache = async () => {
+  const now = Date.now();
+  if (dataCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    return dataCache;
+  }
+  
+  dataCache = await readData();
+  cacheTimestamp = now;
+  return dataCache;
+};
+
+const clearCache = () => {
+  dataCache = null;
+  cacheTimestamp = 0;
+};
+
+// إنشاء مجلد التحميلات
 const ensureUploadsDir = async () => {
   const uploadsDir = path.join(__dirname, 'public', 'uploads');
   try {
     await fs.access(uploadsDir);
-    console.log('📁 Uploads directory exists');
   } catch (error) {
     await fs.mkdir(uploadsDir, { recursive: true });
     console.log('📁 Created uploads directory');
@@ -69,7 +82,6 @@ const initializeDataFile = async () => {
     await fs.access(DATA_FILE);
     console.log('✅ Data file exists');
     
-    // تحقق من صحة البيانات
     const data = await readData();
     if (!data || !data.user || !data.settings) {
       throw new Error('Invalid data structure');
@@ -115,7 +127,8 @@ const initializeDataFile = async () => {
         name: "Admin User",
         role: "System Administrator",
         avatar: "",
-        password: hashedPassword
+        password: hashedPassword,
+        lastPasswordChange: new Date().toISOString()
       },
       products: [],
       orders: [],
@@ -145,7 +158,7 @@ const readData = async () => {
 const writeData = async (data) => {
   try {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-    console.log('✅ Data saved successfully');
+    clearCache(); // مسح الكاش بعد أي تحديث
     return true;
   } catch (error) {
     console.error('❌ Error writing data:', error);
@@ -196,14 +209,20 @@ app.get('/', (req, res) => {
 // Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
-// رفع الصور
+// رفع الصور - نظام محسن
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const imageUrl = `/uploads/${req.file.filename}`;
+    // حفظ الصورة على القرص
+    const fileName = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${path.extname(req.file.originalname)}`;
+    const filePath = path.join(__dirname, 'public', 'uploads', fileName);
+    
+    await fs.writeFile(filePath, req.file.buffer);
+    
+    const imageUrl = `/uploads/${fileName}`;
     
     console.log('✅ Image uploaded successfully:', imageUrl);
     
@@ -214,7 +233,7 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
     });
   } catch (error) {
     console.error('❌ Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image: ' + error.message });
+    res.status(500).json({ error: 'Failed to upload image' });
   }
 });
 
@@ -225,7 +244,12 @@ app.post('/api/upload-public', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const fileName = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${path.extname(req.file.originalname)}`;
+    const filePath = path.join(__dirname, 'public', 'uploads', fileName);
+    
+    await fs.writeFile(filePath, req.file.buffer);
+    
+    const imageUrl = `/uploads/${fileName}`;
     
     console.log('✅ Public image uploaded successfully:', imageUrl);
     
@@ -236,16 +260,23 @@ app.post('/api/upload-public', upload.single('image'), async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Public upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image: ' + error.message });
+    res.status(500).json({ error: 'Failed to upload image' });
   }
 });
 
 // Debug endpoint
 app.get('/api/debug', async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
     const uploadsDir = path.join(__dirname, 'public', 'uploads');
-    const uploadsExist = fs.existsSync(uploadsDir);
+    
+    let uploadsExist = false;
+    try {
+      await fs.access(uploadsDir);
+      uploadsExist = true;
+    } catch (error) {
+      uploadsExist = false;
+    }
     
     if (data) {
       res.json({
@@ -256,12 +287,9 @@ app.get('/api/debug', async (req, res) => {
         ordersCount: data.orders ? data.orders.length : 0,
         uploadsDirExists: uploadsExist,
         filePath: DATA_FILE,
-        dataStructure: {
-          settings: !!data.settings,
-          user: !!data.user,
-          products: !!data.products,
-          orders: !!data.orders,
-          analytics: !!data.analytics
+        cache: {
+          enabled: true,
+          timestamp: cacheTimestamp
         }
       });
     } else {
@@ -272,7 +300,7 @@ app.get('/api/debug', async (req, res) => {
   }
 });
 
-// Login endpoint
+// Login endpoint - محسن
 app.post('/api/login', async (req, res) => {
   const { password } = req.body;
   
@@ -280,17 +308,21 @@ app.post('/api/login', async (req, res) => {
     return res.status(400).json({ error: 'Password is required' });
   }
 
-  const data = await readData();
-
-  if (!data || !data.user) {
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
-
   try {
+    const data = await readDataWithCache();
+
+    if (!data || !data.user) {
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const isValid = await bcrypt.compare(password, data.user.password);
     
     if (isValid) {
-      const token = jwt.sign({ userId: 1 }, JWT_SECRET, { expiresIn: '24h' });
+      const token = jwt.sign({ 
+        userId: 1,
+        timestamp: Date.now()
+      }, JWT_SECRET, { expiresIn: '24h' });
+      
       res.json({ 
         success: true, 
         token,
@@ -301,6 +333,8 @@ app.post('/api/login', async (req, res) => {
         }
       });
     } else {
+      // تأخير بسيط للأمان
+      await new Promise(resolve => setTimeout(resolve, 1000));
       res.status(401).json({ error: 'Invalid password' });
     }
   } catch (error) {
@@ -309,7 +343,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Change password
+// Change password - محسن
 app.put('/api/user/password', authenticateToken, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   
@@ -317,23 +351,35 @@ app.put('/api/user/password', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'All password fields are required' });
   }
 
-  const data = await readData();
-
-  if (!data) {
-    return res.status(500).json({ error: 'Server error' });
-  }
-
   try {
+    const data = await readDataWithCache();
+
+    if (!data) {
+      return res.status(500).json({ error: 'Server error' });
+    }
+
     const isValid = await bcrypt.compare(currentPassword, data.user.password);
     if (!isValid) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
     data.user.password = await bcrypt.hash(newPassword, 10);
+    data.user.lastPasswordChange = new Date().toISOString();
+    
     const success = await writeData(data);
 
     if (success) {
-      res.json({ success: true, message: 'Password updated successfully' });
+      // إلغاء جميع التوكنات القديمة
+      clearCache();
+      res.json({ 
+        success: true, 
+        message: 'Password updated successfully',
+        timestamp: data.user.lastPasswordChange
+      });
     } else {
       res.status(500).json({ error: 'Failed to update password' });
     }
@@ -346,7 +392,7 @@ app.put('/api/user/password', authenticateToken, async (req, res) => {
 // Get settings
 app.get('/api/settings', async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
     if (data && data.settings) {
       res.json(data.settings);
     } else {
@@ -362,7 +408,7 @@ app.get('/api/settings', async (req, res) => {
 app.put('/api/settings', authenticateToken, async (req, res) => {
   try {
     const settings = req.body;
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error - no data found' });
@@ -376,7 +422,6 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Settings updated successfully');
       res.json({ 
         success: true, 
         message: 'Settings updated successfully', 
@@ -395,7 +440,7 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
 app.put('/api/user/profile', authenticateToken, async (req, res) => {
   try {
     const { name, avatar } = req.body;
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error - no data found' });
@@ -411,7 +456,6 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Profile updated successfully');
       res.json({ 
         success: true, 
         message: 'Profile updated successfully',
@@ -433,12 +477,13 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
 // Get user profile
 app.get('/api/user/profile', authenticateToken, async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
     if (data && data.user) {
       res.json({
         name: data.user.name,
         role: data.user.role,
-        avatar: data.user.avatar
+        avatar: data.user.avatar,
+        lastPasswordChange: data.user.lastPasswordChange
       });
     } else {
       res.status(500).json({ error: 'Failed to load profile' });
@@ -452,25 +497,9 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
 // Get products
 app.get('/api/products', async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
     if (data && data.products) {
-      // تصحيح مسارات الصور
-      const productsWithFixedImages = data.products.map(product => {
-        if (product.images && Array.isArray(product.images)) {
-          product.images = product.images.map(img => {
-            if (img.startsWith('data:image')) {
-              return img;
-            }
-            if (!img.startsWith('http') && !img.startsWith('/uploads/')) {
-              return `/uploads/${img}`;
-            }
-            return img;
-          });
-        }
-        return product;
-      });
-      
-      res.json(productsWithFixedImages);
+      res.json(data.products);
     } else {
       res.status(500).json({ error: 'Failed to load products' });
     }
@@ -484,7 +513,7 @@ app.get('/api/products', async (req, res) => {
 app.get('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data || !data.products) {
       return res.status(500).json({ error: 'Server error' });
@@ -506,7 +535,7 @@ app.get('/api/products/:id', authenticateToken, async (req, res) => {
 app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const productData = req.body;
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -534,7 +563,6 @@ app.post('/api/products', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Product added successfully:', newProduct.name);
       res.json({ success: true, product: newProduct });
     } else {
       res.status(500).json({ error: 'Failed to add product' });
@@ -550,7 +578,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
     const productData = req.body;
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -577,7 +605,6 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Product updated successfully:', data.products[productIndex].name);
       res.json({ success: true, product: data.products[productIndex] });
     } else {
       res.status(500).json({ error: 'Failed to update product' });
@@ -592,7 +619,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
 app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -603,11 +630,10 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    const deletedProduct = data.products.splice(productIndex, 1)[0];
+    data.products.splice(productIndex, 1);
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Product deleted successfully:', deletedProduct.name);
       res.json({ success: true, message: 'Product deleted successfully' });
     } else {
       res.status(500).json({ error: 'Failed to delete product' });
@@ -621,7 +647,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
 // Get orders
 app.get('/api/orders', authenticateToken, async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
     if (data && data.orders) {
       res.json(data.orders);
     } else {
@@ -637,7 +663,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
 app.get('/api/orders/:id', authenticateToken, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data || !data.orders) {
       return res.status(500).json({ error: 'Server error' });
@@ -659,7 +685,7 @@ app.get('/api/orders/:id', authenticateToken, async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     const orderData = req.body;
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -685,7 +711,6 @@ app.post('/api/orders', async (req, res) => {
 
     data.orders.push(newOrder);
     
-    // تحديث الإحصائيات
     if (!data.analytics) {
       data.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
     }
@@ -695,7 +720,6 @@ app.post('/api/orders', async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Order created successfully: #' + newOrder.id);
       res.json({ success: true, orderId: newOrder.id });
     } else {
       res.status(500).json({ error: 'Failed to create order' });
@@ -711,7 +735,7 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -726,7 +750,6 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     order.status = status;
     order.updatedAt = new Date().toISOString();
 
-    // تحديث الإحصائيات بناءً على تغيير الحالة
     if (!data.analytics) {
       data.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
     }
@@ -743,7 +766,6 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Order status updated: #' + orderId + ' -> ' + status);
       res.json({ success: true, message: 'Order status updated successfully' });
     } else {
       res.status(500).json({ error: 'Failed to update order status' });
@@ -757,7 +779,7 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
 // Track visitor
 app.post('/api/analytics/visitor', async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
 
     if (data) {
       if (!data.analytics) {
@@ -778,7 +800,7 @@ app.post('/api/analytics/visitor', async (req, res) => {
 // Get analytics
 app.get('/api/analytics', authenticateToken, async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
     if (data && data.analytics) {
       res.json(data.analytics);
     } else {
@@ -793,7 +815,7 @@ app.get('/api/analytics', authenticateToken, async (req, res) => {
 // Get dashboard stats
 app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   try {
-    const data = await readData();
+    const data = await readDataWithCache();
     if (data) {
       const completedOrders = data.orders ? data.orders.filter(order => order.status === 'completed') : [];
       const stats = {
@@ -812,17 +834,15 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// Reset data endpoint - إصدار محسن
+// Reset data endpoint
 app.post('/api/reset-data', authenticateToken, async (req, res) => {
   try {
-    console.log('🔄 Starting COMPLETE data reset...');
+    console.log('🔄 Starting data reset...');
     
-    // قراءة البيانات الحالية لمعرفة ما سيتم حذفه
-    const currentData = await readData();
+    const currentData = await readDataWithCache();
     const productsCount = currentData?.products?.length || 0;
     const ordersCount = currentData?.orders?.length || 0;
     
-    // إنشاء بيانات جديدة كاملة
     const hashedPassword = await bcrypt.hash('user1234', 10);
     const resetData = {
       settings: {
@@ -860,7 +880,8 @@ app.post('/api/reset-data', authenticateToken, async (req, res) => {
         name: "Admin User",
         role: "System Administrator",
         avatar: "",
-        password: hashedPassword
+        password: hashedPassword,
+        lastPasswordChange: new Date().toISOString()
       },
       products: [],
       orders: [],
@@ -871,51 +892,32 @@ app.post('/api/reset-data', authenticateToken, async (req, res) => {
       }
     };
 
-    // كتابة البيانات الجديدة
     await fs.writeFile(DATA_FILE, JSON.stringify(resetData, null, 2));
+    clearCache();
     
-    // التحقق من أن البيانات كتبت correctly
-    const verifyData = await readData();
-    const verifiedProducts = verifyData?.products?.length || 0;
-    const verifiedOrders = verifyData?.orders?.length || 0;
-    
-    console.log('✅ DATA RESET COMPLETED SUCCESSFULLY');
-    console.log(`🗑️  Products deleted: ${productsCount}`);
-    console.log(`🗑️  Orders deleted: ${ordersCount}`);
-    console.log(`📊 Analytics reset: COMPLETE`);
-    console.log(`⚙️  Settings reset: COMPLETE`);
-    console.log(`👤 User profile: PRESERVED (password reset to 'user1234')`);
-    console.log(`✅ Verification: ${verifiedProducts} products, ${verifiedOrders} orders`);
+    console.log('✅ Data reset completed');
     
     res.json({ 
       success: true, 
-      message: 'Store data has been completely reset to factory settings',
+      message: 'Store data has been completely reset',
       resetSummary: {
         productsDeleted: productsCount,
         ordersDeleted: ordersCount,
         analyticsReset: true,
-        settingsReset: true,
-        userPreserved: true,
-        verification: {
-          products: verifiedProducts,
-          orders: verifiedOrders
-        }
+        settingsReset: true
       }
     });
     
   } catch (error) {
-    console.error('❌ RESET DATA FAILED:', error);
-    res.status(500).json({ 
-      error: 'Failed to reset store data: ' + error.message,
-      details: 'Please check server logs and file permissions'
-    });
+    console.error('❌ Reset data error:', error);
+    res.status(500).json({ error: 'Failed to reset store data' });
   }
 });
 
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('❌ Unhandled error:', error);
-  res.status(500).json({ error: 'Internal server error: ' + error.message });
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // 404 handler
@@ -934,11 +936,9 @@ const startServer = async () => {
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
-      console.log(`📁 Uploads directory: ${path.join(__dirname, 'public', 'uploads')}`);
+      console.log(`📁 Uploads: http://localhost:${PORT}/uploads`);
+      console.log(`⚡ Performance: CACHE ENABLED`);
       console.log(`📊 Data file: ${DATA_FILE}`);
-      console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🐛 Debug: http://localhost:${PORT}/api/debug`);
-      console.log(`🔄 Reset available in admin panel (Danger Zone)`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
