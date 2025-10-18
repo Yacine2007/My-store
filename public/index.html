@@ -272,6 +272,31 @@
             margin-bottom: 15px;
         }
 
+        .product-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .delivery-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .delivery-available {
+            background: #d1edff;
+            color: #004085;
+        }
+
+        .delivery-unavailable {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
         .product-actions {
             display: flex;
             justify-content: space-between;
@@ -417,49 +442,69 @@
             color: var(--primary);
         }
 
-        .contact-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .contact-btn {
+        .delivery-options {
             display: flex;
-            align-items: center;
-            justify-content: center;
             gap: 10px;
-            padding: 12px;
-            border-radius: var(--border-radius);
-            text-decoration: none;
-            font-weight: 600;
-            transition: var(--transition);
+            margin: 15px 0;
+        }
+
+        .delivery-option {
+            flex: 1;
             text-align: center;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
         }
 
-        .contact-btn.whatsapp {
-            background: #25D366;
-            color: white;
+        .delivery-option.selected {
+            border-color: var(--primary);
+            background: rgba(67, 97, 238, 0.1);
         }
 
-        .contact-btn.phone {
-            background: var(--primary);
-            color: white;
+        .delivery-option i {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            display: block;
         }
 
-        .contact-btn.email {
-            background: var(--accent);
-            color: white;
+        /* Product Gallery in Modal */
+        .product-gallery {
+            margin: 20px 0;
         }
 
-        .contact-btn.facebook {
-            background: #1877f2;
-            color: white;
+        .product-main-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: var(--border-radius);
+            margin-bottom: 10px;
         }
 
-        .contact-btn:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
+        .product-thumbnails {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+
+        .product-thumbnail {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .product-thumbnail.active {
+            border-color: var(--primary);
+        }
+
+        .product-thumbnail:hover {
+            border-color: var(--primary);
         }
 
         /* Footer Styles */
@@ -625,8 +670,8 @@
                 grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             }
 
-            .contact-buttons {
-                grid-template-columns: 1fr;
+            .delivery-options {
+                flex-direction: column;
             }
         }
 
@@ -654,6 +699,11 @@
 
             .footer-content {
                 grid-template-columns: 1fr;
+            }
+
+            .product-thumbnail {
+                width: 60px;
+                height: 60px;
             }
         }
     </style>
@@ -683,6 +733,9 @@
                     <img id="storeLogo" src="" alt="Store Logo" onerror="this.style.display='none'">
                     <h1 id="storeName">My Store</h1>
                 </div>
+                <a href="http://my-storewin.great-site.net/" class="admin-link" target="_blank">
+                    <i class="fas fa-store"></i> View Store
+                </a>
             </div>
         </div>
     </header>
@@ -707,6 +760,17 @@
         </div>
     </section>
 
+    <!-- Product Details Modal -->
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 class="modal-title" id="productModalTitle">Product Details</h2>
+            <div class="product-details" id="productDetailsContent">
+                <!-- Product details will be populated here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Order Form Modal -->
     <div class="modal" id="orderModal">
         <div class="modal-content">
@@ -714,6 +778,12 @@
             <h2 class="modal-title">Order <span id="orderProductName"></span></h2>
             <form id="orderForm">
                 <input type="hidden" id="orderProductId">
+                
+                <!-- Product Gallery -->
+                <div class="product-gallery" id="orderProductGallery">
+                    <!-- Product images will be populated here -->
+                </div>
+
                 <div class="form-group">
                     <label for="customerName">Full Name *</label>
                     <input type="text" id="customerName" class="form-control" required>
@@ -726,6 +796,23 @@
                     <label for="customerAddress">Delivery Address *</label>
                     <textarea id="customerAddress" class="form-control" rows="3" required></textarea>
                 </div>
+                
+                <!-- Delivery Options -->
+                <div class="form-group">
+                    <label>Delivery Option</label>
+                    <div class="delivery-options">
+                        <div class="delivery-option selected" data-option="delivery">
+                            <i class="fas fa-truck"></i>
+                            <div>Home Delivery</div>
+                        </div>
+                        <div class="delivery-option" data-option="pickup">
+                            <i class="fas fa-store"></i>
+                            <div>Store Pickup</div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="deliveryOption" value="delivery">
+                </div>
+
                 <div class="form-group">
                     <label for="orderQuantity">Quantity *</label>
                     <div class="quantity-selector">
@@ -813,7 +900,9 @@
 
     <script>
         // API Configuration
-        const API_BASE_URL = 'https://my-store-p63u.onrender.com/api';
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/api' 
+            : 'https://my-store-p63u.onrender.com/api';
         
         // Global variables
         let storeConfig = {};
@@ -822,6 +911,7 @@
 
         // DOM Elements
         const productsContainer = document.getElementById('products-container');
+        const productModal = document.getElementById('productModal');
         const orderModal = document.getElementById('orderModal');
         const notification = document.getElementById('notification');
         const notificationClose = document.getElementById('notificationClose');
@@ -901,13 +991,17 @@
             try {
                 // Load settings
                 const settingsResponse = await fetch(`${API_BASE_URL}/settings`);
-                storeConfig = await settingsResponse.json();
-                applyStoreConfig();
+                if (settingsResponse.ok) {
+                    storeConfig = await settingsResponse.json();
+                    applyStoreConfig();
+                }
 
                 // Load products
                 const productsResponse = await fetch(`${API_BASE_URL}/products`);
-                currentProducts = await productsResponse.json();
-                renderProducts();
+                if (productsResponse.ok) {
+                    currentProducts = await productsResponse.json();
+                    renderProducts();
+                }
             } catch (error) {
                 console.error('Error loading store data:', error);
                 showNotification('Error', 'Failed to load store data', 'error');
@@ -1031,8 +1125,16 @@
                     <div class="product-info">
                         <h3 class="product-title">${product.name}</h3>
                         <p class="product-description">${product.description || 'No description available.'}</p>
-                        <div class="product-price">${product.price} ${storeConfig.currency || 'DA'}</div>
+                        <div class="product-meta">
+                            <div class="product-price">${product.price} ${storeConfig.currency || 'DA'}</div>
+                            <div class="delivery-badge ${product.deliveryAvailable ? 'delivery-available' : 'delivery-unavailable'}">
+                                ${product.deliveryAvailable ? 'Delivery Available' : 'Pickup Only'}
+                            </div>
+                        </div>
                         <div class="product-actions">
+                            <button class="btn btn-outline view-details" data-id="${product.id}">
+                                <i class="fas fa-eye"></i> Details
+                            </button>
                             <button class="btn order-btn" data-id="${product.id}">
                                 <i class="fas fa-shopping-cart"></i> Order Now
                             </button>
@@ -1043,7 +1145,21 @@
                 productsContainer.appendChild(productCard);
             });
             
-            // Add event listeners to order buttons
+            // Add event listeners
+            setupProductEventListeners();
+        }
+
+        // Setup product event listeners
+        function setupProductEventListeners() {
+            // View details buttons
+            document.querySelectorAll('.view-details').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = parseInt(e.target.closest('.view-details').dataset.id);
+                    viewProductDetails(productId);
+                });
+            });
+            
+            // Order buttons
             document.querySelectorAll('.order-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
                     const productId = parseInt(e.target.closest('.order-btn').dataset.id);
@@ -1052,22 +1168,141 @@
             });
         }
 
+        // View product details
+        function viewProductDetails(productId) {
+            const product = currentProducts.find(p => p.id === productId);
+            
+            if (!product) return;
+            
+            const images = product.images && product.images.length > 0 ? product.images : ['https://via.placeholder.com/500x400?text=No+Image'];
+            const mainImage = images[0];
+            
+            document.getElementById('productModalTitle').textContent = product.name;
+            
+            const detailsContent = `
+                <div class="product-gallery">
+                    <img src="${mainImage}" alt="${product.name}" class="product-main-image" id="mainProductImage">
+                    ${images.length > 1 ? `
+                    <div class="product-thumbnails">
+                        ${images.map((img, index) => `
+                            <img src="${img}" alt="Thumbnail ${index + 1}" class="product-thumbnail ${index === 0 ? 'active' : ''}" 
+                                 onclick="changeProductImage('${img}', this)">
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                </div>
+                <div class="product-info-details">
+                    <h3>${product.name}</h3>
+                    <div class="product-meta">
+                        <span><i class="fas fa-tag"></i> ${product.category || 'Uncategorized'}</span>
+                        <span><i class="fas fa-box"></i> ${product.quantity} in stock</span>
+                        <span class="delivery-badge ${product.deliveryAvailable ? 'delivery-available' : 'delivery-unavailable'}">
+                            ${product.deliveryAvailable ? 'Delivery Available' : 'Pickup Only'}
+                        </span>
+                    </div>
+                    <p>${product.description || 'No description available.'}</p>
+                    <div class="product-price" style="font-size: 2rem;">${product.price} ${storeConfig.currency || 'DA'}</div>
+                    <button class="btn" onclick="openOrderModal(${product.id})" style="width: 100%;">
+                        <i class="fas fa-shopping-cart"></i> Order Now
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('productDetailsContent').innerHTML = detailsContent;
+            productModal.style.display = 'flex';
+        }
+
+        // Change product image in details view
+        function changeProductImage(imageUrl, element) {
+            document.getElementById('mainProductImage').src = imageUrl;
+            document.querySelectorAll('.product-thumbnail').forEach(thumb => {
+                thumb.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
         // Open order modal
         function openOrderModal(productId) {
             selectedProduct = currentProducts.find(p => p.id === productId);
             
             if (!selectedProduct) return;
             
+            productModal.style.display = 'none';
+            
             document.getElementById('orderProductName').textContent = selectedProduct.name;
             document.getElementById('orderProductId').value = selectedProduct.id;
-            document.getElementById('unitPrice').textContent = selectedProduct.price + ' ' + (storeConfig.currency || 'DA');
+            document.getElementById('unitPrice').textContent = `${selectedProduct.price} ${storeConfig.currency || 'DA'}`;
             
             // Reset form
             orderForm.reset();
             quantityInput.value = 1;
+            
+            // Setup product gallery
+            setupProductGallery();
+            
+            // Setup delivery options based on product availability
+            setupDeliveryOptions();
+            
             updateOrderSummary();
             
             orderModal.style.display = 'flex';
+        }
+
+        // Setup product gallery in order modal
+        function setupProductGallery() {
+            const galleryContainer = document.getElementById('orderProductGallery');
+            const images = selectedProduct.images && selectedProduct.images.length > 0 
+                ? selectedProduct.images 
+                : ['https://via.placeholder.com/500x400?text=No+Image'];
+            
+            const mainImage = images[0];
+            
+            galleryContainer.innerHTML = `
+                <img src="${mainImage}" alt="${selectedProduct.name}" class="product-main-image" id="orderMainImage">
+                ${images.length > 1 ? `
+                <div class="product-thumbnails">
+                    ${images.map((img, index) => `
+                        <img src="${img}" alt="Thumbnail ${index + 1}" class="product-thumbnail ${index === 0 ? 'active' : ''}" 
+                             onclick="changeOrderProductImage('${img}', this)">
+                    `).join('')}
+                </div>
+                ` : ''}
+            `;
+        }
+
+        // Change product image in order modal
+        function changeOrderProductImage(imageUrl, element) {
+            document.getElementById('orderMainImage').src = imageUrl;
+            document.querySelectorAll('#orderProductGallery .product-thumbnail').forEach(thumb => {
+                thumb.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        // Setup delivery options
+        function setupDeliveryOptions() {
+            const deliveryOptions = document.querySelectorAll('.delivery-option');
+            const deliveryOptionInput = document.getElementById('deliveryOption');
+            
+            deliveryOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    deliveryOptions.forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                    deliveryOptionInput.value = option.dataset.option;
+                });
+                
+                // Disable delivery option if not available
+                if (option.dataset.option === 'delivery' && !selectedProduct.deliveryAvailable) {
+                    option.style.opacity = '0.5';
+                    option.style.cursor = 'not-allowed';
+                    option.onclick = null;
+                }
+            });
+            
+            // Auto-select pickup if delivery not available
+            if (!selectedProduct.deliveryAvailable) {
+                document.querySelector('.delivery-option[data-option="pickup"]').click();
+            }
         }
 
         // Update order summary
@@ -1085,11 +1320,15 @@
             // Modal close events
             document.querySelectorAll('.close-modal').forEach(closeBtn => {
                 closeBtn.addEventListener('click', () => {
+                    productModal.style.display = 'none';
                     orderModal.style.display = 'none';
                 });
             });
             
             window.addEventListener('click', (e) => {
+                if (e.target === productModal) {
+                    productModal.style.display = 'none';
+                }
                 if (e.target === orderModal) {
                     orderModal.style.display = 'none';
                 }
@@ -1127,6 +1366,7 @@
         async function submitOrder() {
             const quantity = parseInt(quantityInput.value);
             const total = quantity * selectedProduct.price;
+            const deliveryOption = document.getElementById('deliveryOption').value;
             
             const orderData = {
                 items: [{
@@ -1141,6 +1381,7 @@
                 phone: document.getElementById('customerPhone').value,
                 address: document.getElementById('customerAddress').value,
                 description: document.getElementById('orderNotes').value,
+                deliveryOption: deliveryOption,
                 total: total
             };
             
