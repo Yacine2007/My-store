@@ -1385,617 +1385,804 @@
             </div>
         </div>
     </div>
+<script>
+    // نظام اكتشاف API تلقائي محسن
+    function getApiBaseUrl() {
+        // قائمة بالخوادم المحتملة مرتبة بالأولوية
+        const apiEndpoints = [
+            'https://my-store-p63u.onrender.com/api',
+            'http://localhost:3000/api'
+        ];
 
-    <script>
-        // API Configuration
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000/api' 
-            : 'https://my-store-p63u.onrender.com/api';
-        
-        console.log('API Base URL:', API_BASE_URL);
-
-        // Global variables
-        let authToken = '';
-        let currentUser = {};
-        let storeSettings = {};
-        let products = [];
-        let orders = [];
-        let uploadedImages = [];
-        let currentOrderId = null;
-
-        // DOM Elements
-        const loginPage = document.getElementById('loginPage');
-        const dashboard = document.getElementById('dashboard');
-        const loginForm = document.getElementById('loginForm');
-        const notification = document.getElementById('notification');
-        const notificationClose = document.getElementById('notificationClose');
-        const sidebar = document.getElementById('sidebar');
-        const menuToggle = document.getElementById('menuToggle');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const productModal = document.getElementById('productModal');
-        const orderDetailsModal = document.getElementById('orderDetailsModal');
-        const closeModal = document.querySelectorAll('.close-modal');
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-        const productImages = document.getElementById('productImages');
-        const progressBar = document.getElementById('progressBar');
-        const progressFill = document.getElementById('progressFill');
-        const logoUploadArea = document.getElementById('logoUploadArea');
-        const logoFileInput = document.getElementById('logoFileInput');
-        const avatarUploadArea = document.getElementById('avatarUploadArea');
-        const avatarFileInput = document.getElementById('avatarFileInput');
-
-        // Show notification
-        function showNotification(title, message, type = 'success') {
-            const notificationTitle = document.getElementById('notificationTitle');
-            const notificationMessage = document.getElementById('notificationMessage');
-            const notificationIcon = notification.querySelector('.notification-icon');
-            
-            notificationTitle.textContent = title;
-            notificationMessage.textContent = message;
-            
-            const colors = {
-                success: '#4cc9f0',
-                error: '#e63946',
-                warning: '#ff9e00',
-                info: '#4361ee'
-            };
-            
-            notificationIcon.style.background = colors[type] || colors.success;
-            notificationIcon.innerHTML = type === 'error' ? '<i class="fas fa-exclamation"></i>' : 
-                                       type === 'warning' ? '<i class="fas fa-exclamation-triangle"></i>' :
-                                       type === 'info' ? '<i class="fas fa-info"></i>' :
-                                       '<i class="fas fa-check"></i>';
-            
-            notification.classList.add('show');
-            
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 5000);
+        // إذا كنا في بيئة التطوير، جرب المحلي أولاً
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            apiEndpoints.unshift('http://localhost:3000/api');
         }
 
-        // Close notification
-        notificationClose.addEventListener('click', () => {
-            notification.classList.remove('show');
-        });
+        return apiEndpoints[0]; // استخدم الأول كافتراضي
+    }
 
-        // Initialize the dashboard
-        async function initDashboard() {
-            const savedToken = localStorage.getItem('adminToken');
-            if (savedToken) {
-                authToken = savedToken;
-                await verifyToken();
-            } else {
-                showLoginPage();
+    const API_BASE_URL = getApiBaseUrl();
+    console.log('🚀 Using API Base URL:', API_BASE_URL);
+
+    // Global variables
+    let authToken = '';
+    let currentUser = {};
+    let storeSettings = {};
+    let products = [];
+    let orders = [];
+    let uploadedImages = [];
+    let currentOrderId = null;
+    let loadingTimeout = null;
+
+    // DOM Elements
+    const loginPage = document.getElementById('loginPage');
+    const dashboard = document.getElementById('dashboard');
+    const loginForm = document.getElementById('loginForm');
+    const notification = document.getElementById('notification');
+    const notificationClose = document.getElementById('notificationClose');
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const productModal = document.getElementById('productModal');
+    const orderDetailsModal = document.getElementById('orderDetailsModal');
+    const closeModal = document.querySelectorAll('.close-modal');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const productImages = document.getElementById('productImages');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const logoUploadArea = document.getElementById('logoUploadArea');
+    const logoFileInput = document.getElementById('logoFileInput');
+    const avatarUploadArea = document.getElementById('avatarUploadArea');
+    const avatarFileInput = document.getElementById('avatarFileInput');
+
+    // نظام التحميل الذكي
+    function startLoading(message = 'Loading...') {
+        console.log('🔄', message);
+        loadingTimeout = setTimeout(() => {
+            showNotification('Warning', 'Taking longer than expected. Please wait...', 'warning');
+        }, 8000);
+    }
+
+    function stopLoading() {
+        if (loadingTimeout) {
+            clearTimeout(loadingTimeout);
+            loadingTimeout = null;
+        }
+    }
+
+    // طلبات Fetch محسنة
+    async function safeFetch(url, options = {}) {
+        startLoading(`Fetching: ${url}`);
+        
+        try {
+            // إضافة headers افتراضية
+            const fetchOptions = {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            };
+
+            const response = await fetch(url, fetchOptions);
+            stopLoading();
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            setupEventListeners();
+            return response;
+        } catch (error) {
+            stopLoading();
+            console.error('❌ Fetch error:', error);
+            throw error;
         }
+    }
 
-        // Show login page
-        function showLoginPage() {
-            loginPage.style.display = 'flex';
-            dashboard.style.display = 'none';
-        }
+    // Show notification محسن
+    function showNotification(title, message, type = 'success') {
+        const notificationTitle = document.getElementById('notificationTitle');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const notificationIcon = notification.querySelector('.notification-icon');
+        
+        notificationTitle.textContent = title;
+        notificationMessage.textContent = message;
+        
+        const colors = {
+            success: '#4cc9f0',
+            error: '#e63946',
+            warning: '#ff9e00',
+            info: '#4361ee'
+        };
+        
+        notificationIcon.style.background = colors[type] || colors.success;
+        notificationIcon.innerHTML = type === 'error' ? '<i class="fas fa-exclamation"></i>' : 
+                                   type === 'warning' ? '<i class="fas fa-exclamation-triangle"></i>' :
+                                   type === 'info' ? '<i class="fas fa-info"></i>' :
+                                   '<i class="fas fa-check"></i>';
+        
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 5000);
+    }
 
-        // Show dashboard
-        function showDashboard() {
-            loginPage.style.display = 'none';
-            dashboard.style.display = 'flex';
-            loadDashboardData();
-        }
+    // Close notification
+    notificationClose.addEventListener('click', () => {
+        notification.classList.remove('show');
+    });
 
-        // Verify token
-        async function verifyToken() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/settings`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    showDashboard();
-                } else {
-                    localStorage.removeItem('adminToken');
-                    showLoginPage();
+    // فحص صحة API محسن
+    async function checkAPIHealth() {
+        try {
+            console.log('🔍 Checking API health...');
+            const response = await fetch(`${API_BASE_URL}/health`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
                 }
-            } catch (error) {
-                console.error('Token verification failed:', error);
+            });
+            
+            if (response.ok) {
+                const health = await response.json();
+                console.log('✅ API is healthy:', health);
+                return true;
+            } else {
+                console.error('❌ API health check failed');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ API connection failed:', error);
+            return false;
+        }
+    }
+
+    // Initialize the dashboard محسن
+    async function initDashboard() {
+        console.log('🎯 Initializing dashboard...');
+        
+        // فحص اتصال API أولاً
+        const isAPIHealthy = await checkAPIHealth();
+        
+        if (!isAPIHealthy) {
+            showNotification('Connection Error', 
+                'Cannot connect to server. Please check:\n• Internet connection\n• Server status\n• API endpoints', 
+                'error');
+            showLoginPage();
+            return;
+        }
+
+        const savedToken = localStorage.getItem('adminToken');
+        if (savedToken) {
+            authToken = savedToken;
+            console.log('🔑 Token found, verifying...');
+            await verifyToken();
+        } else {
+            console.log('🔐 No token found, showing login');
+            showLoginPage();
+        }
+
+        setupEventListeners();
+        console.log('✅ Dashboard initialized successfully');
+    }
+
+    // Show login page
+    function showLoginPage() {
+        loginPage.style.display = 'flex';
+        dashboard.style.display = 'none';
+        // تحميل إعدادات المتجر للشعار
+        loadStoreSettingsForLogin();
+    }
+
+    // تحميل إعدادات المتجر لصفحة Login
+    async function loadStoreSettingsForLogin() {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/settings`);
+            if (response.ok) {
+                const settings = await response.json();
+                if (settings.logo) {
+                    document.getElementById('loginLogo').src = settings.logo;
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Could not load store settings for login');
+        }
+    }
+
+    // Show dashboard
+    function showDashboard() {
+        loginPage.style.display = 'none';
+        dashboard.style.display = 'flex';
+        loadDashboardData();
+    }
+
+    // Verify token محسن
+    async function verifyToken() {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/user/profile`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                currentUser = userData;
+                console.log('✅ Token verified, user:', userData.name);
+                showDashboard();
+            } else {
+                console.error('❌ Token verification failed');
                 localStorage.removeItem('adminToken');
                 showLoginPage();
+                showNotification('Session Expired', 'Please login again', 'warning');
             }
-        }
-
-        // Setup event listeners
-        function setupEventListeners() {
-            // Login form
-            loginForm.addEventListener('submit', handleLogin);
-
-            // Menu toggle
-            menuToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('active');
-            });
-
-            // Logout
-            logoutBtn.addEventListener('click', handleLogout);
-
-            // Tab navigation
-            document.querySelectorAll('.menu-item[data-tab]').forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const tabId = item.getAttribute('data-tab');
-                    switchTab(tabId);
-                    
-                    document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-                    item.classList.add('active');
-                });
-            });
-
-            // Settings tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const tabId = tab.getAttribute('data-tab');
-                    switchSettingsTab(tabId);
-                });
-            });
-
-            // Add product button
-            document.getElementById('addProductBtn').addEventListener('click', () => {
-                openProductModal();
-            });
-
-            // Forms
-            document.getElementById('settingsForm').addEventListener('submit', handleSettingsSave);
-            document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
-            document.getElementById('passwordForm').addEventListener('submit', handlePasswordChange);
-            document.getElementById('productForm').addEventListener('submit', handleProductSave);
-
-            // Color pickers
-            setupColorPickers();
-
-            // Close modal events
-            closeModal.forEach(closeBtn => {
-                closeBtn.addEventListener('click', () => {
-                    productModal.style.display = 'none';
-                    orderDetailsModal.style.display = 'none';
-                });
-            });
-
-            window.addEventListener('click', (e) => {
-                if (e.target === productModal) {
-                    productModal.style.display = 'none';
-                }
-                if (e.target === orderDetailsModal) {
-                    orderDetailsModal.style.display = 'none';
-                }
-            });
-
-            // أحداث رفع الصور للمنتجات
-            uploadArea.addEventListener('click', () => {
-                fileInput.click();
-            });
-
-            fileInput.addEventListener('change', handleFileSelect);
-
-            // أحداث السحب والإفلات للمنتجات
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.classList.remove('dragover');
-            });
-
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                const files = e.dataTransfer.files;
-                handleFiles(files);
-            });
-
-            // أحداث رفع لوجو المتجر
-            logoUploadArea.addEventListener('click', () => {
-                logoFileInput.click();
-            });
-
-            logoFileInput.addEventListener('change', (e) => {
-                handleLogoUpload(e.target.files[0]);
-            });
-
-            // أحداث رفع صورة البروفايل
-            avatarUploadArea.addEventListener('click', () => {
-                avatarFileInput.click();
-            });
-
-            avatarFileInput.addEventListener('change', (e) => {
-                handleAvatarUpload(e.target.files[0]);
-            });
-
-            // Update order status
-            document.getElementById('updateOrderStatusBtn').addEventListener('click', updateOrderStatusFromModal);
-        }
-
-        // Handle login
-        async function handleLogin(e) {
-            e.preventDefault();
-            const password = document.getElementById('password').value;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ password })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-
-                if (result.success) {
-                    authToken = result.token;
-                    currentUser = result.user;
-                    localStorage.setItem('adminToken', authToken);
-                    showDashboard();
-                    showNotification('Welcome!', 'Login successful');
-                } else {
-                    showNotification('Error', 'Invalid password', 'error');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                showNotification('Error', 'Login failed. Please try again.', 'error');
-            }
-        }
-
-        // Handle logout
-        function handleLogout(e) {
-            e.preventDefault();
-            authToken = '';
-            currentUser = {};
+        } catch (error) {
+            console.error('❌ Token verification error:', error);
             localStorage.removeItem('adminToken');
             showLoginPage();
-            showNotification('Goodbye!', 'You have been logged out');
+            showNotification('Connection Error', 'Failed to verify session', 'error');
         }
+    }
 
-        // Switch between main tabs
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
+    // Setup event listeners محسن
+    function setupEventListeners() {
+        console.log('🔧 Setting up event listeners...');
 
-            document.getElementById(tabId).classList.add('active');
+        // Login form
+        loginForm.addEventListener('submit', handleLogin);
 
-            const headerTitle = document.querySelector('.header h1');
-            switch(tabId) {
-                case 'dashboard-tab':
-                    headerTitle.textContent = 'Dashboard';
-                    loadDashboardStats();
-                    break;
-                case 'products-tab':
-                    headerTitle.textContent = 'Products Management';
-                    loadProducts();
-                    break;
-                case 'orders-tab':
-                    headerTitle.textContent = 'Orders Management';
-                    loadOrders();
-                    break;
-                case 'settings-tab':
-                    headerTitle.textContent = 'Store Settings';
-                    loadSettings();
-                    break;
-                case 'profile-tab':
-                    headerTitle.textContent = 'Profile Settings';
-                    loadProfile();
-                    break;
-            }
-        }
+        // Menu toggle
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
 
-        // Switch between settings tabs
-        function switchSettingsTab(tabId) {
-            document.querySelectorAll('#settings-tab .tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
+        // Logout
+        logoutBtn.addEventListener('click', handleLogout);
 
-            document.querySelectorAll('#settings-tab .tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-
-            document.getElementById(tabId).classList.add('active');
-            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-        }
-
-        // Load dashboard data
-        async function loadDashboardData() {
-            await loadDashboardStats();
-            await loadRecentOrders();
-            loadUserInfo();
-        }
-
-        // Load dashboard statistics
-        async function loadDashboardStats() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    const stats = await response.json();
-                    document.getElementById('ordersCount').textContent = stats.orders;
-                    document.getElementById('productsCount').textContent = stats.products;
-                    document.getElementById('visitorsCount').textContent = stats.visitors;
-                    document.getElementById('revenueAmount').textContent = stats.revenue + ' DA';
-                }
-            } catch (error) {
-                console.error('Error loading dashboard stats:', error);
-            }
-        }
-
-        // Load recent orders
-        async function loadRecentOrders() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/orders`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    orders = await response.json();
-                    renderRecentOrders();
-                }
-            } catch (error) {
-                console.error('Error loading orders:', error);
-            }
-        }
-
-        // Render recent orders
-        function renderRecentOrders() {
-            const tbody = document.querySelector('#recentOrdersTable tbody');
-            tbody.innerHTML = '';
-
-            const recentOrders = orders.slice(-5).reverse();
-
-            recentOrders.forEach(order => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>#${order.id}</td>
-                    <td>${order.customerName}</td>
-                    <td>${order.total} DA</td>
-                    <td><span class="status-badge ${order.status}">${order.status}</span></td>
-                    <td>${new Date(order.createdAt).toLocaleDateString()}</td>
-                    <td>
-                        <button class="action-btn btn-primary" onclick="viewOrderDetails(${order.id})">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        // Load products
-        async function loadProducts() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/products`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    products = await response.json();
-                    renderProducts();
-                }
-            } catch (error) {
-                console.error('Error loading products:', error);
-            }
-        }
-
-        // Render products
-        function renderProducts() {
-            const tbody = document.querySelector('#productsTable tbody');
-            tbody.innerHTML = '';
-
-            products.forEach(product => {
-                const imageUrl = product.images && product.images.length > 0 
-                    ? product.images[0]
-                    : 'https://via.placeholder.com/50x50?text=No+Image';
+        // Tab navigation
+        document.querySelectorAll('.menu-item[data-tab]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tabId = item.getAttribute('data-tab');
+                switchTab(tabId);
                 
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>
-                        <img src="${imageUrl}" alt="${product.name}" class="product-image-table" 
-                             onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'">
-                    </td>
-                    <td>${product.name}</td>
-                    <td>${product.price} DA</td>
-                    <td>${product.quantity}</td>
-                    <td>${product.category || 'Uncategorized'}</td>
-                    <td>
-                        <span class="delivery-badge ${product.deliveryAvailable ? 'delivery-available' : 'delivery-unavailable'}">
-                            ${product.deliveryAvailable ? 'Available' : 'Pickup Only'}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="status-badge ${product.status ? 'active' : 'inactive'}">
-                            ${product.status ? 'Active' : 'Inactive'}
-                        </span>
-                    </td>
-                    <td>
-                        <div class="action-group">
-                            <button class="action-btn btn-primary" onclick="editProduct(${product.id})">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="action-btn btn-danger" onclick="deleteProduct(${product.id})">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(row);
+                document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
             });
-        }
+        });
 
-        // Load orders
-        async function loadOrders() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/orders`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
+        // Settings tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                switchSettingsTab(tabId);
+            });
+        });
 
-                if (response.ok) {
-                    orders = await response.json();
-                    renderOrders();
-                }
-            } catch (error) {
-                console.error('Error loading orders:', error);
+        // Add product button
+        document.getElementById('addProductBtn').addEventListener('click', () => {
+            openProductModal();
+        });
+
+        // Forms
+        document.getElementById('settingsForm').addEventListener('submit', handleSettingsSave);
+        document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+        document.getElementById('passwordForm').addEventListener('submit', handlePasswordChange);
+        document.getElementById('productForm').addEventListener('submit', handleProductSave);
+
+        // Color pickers
+        setupColorPickers();
+
+        // Close modal events
+        closeModal.forEach(closeBtn => {
+            closeBtn.addEventListener('click', () => {
+                productModal.style.display = 'none';
+                orderDetailsModal.style.display = 'none';
+            });
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === productModal) {
+                productModal.style.display = 'none';
             }
+            if (e.target === orderDetailsModal) {
+                orderDetailsModal.style.display = 'none';
+            }
+        });
+
+        // أحداث رفع الصور للمنتجات
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // أحداث السحب والإفلات للمنتجات
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+
+        // أحداث رفع لوجو المتجر
+        logoUploadArea.addEventListener('click', () => {
+            logoFileInput.click();
+        });
+
+        logoFileInput.addEventListener('change', (e) => {
+            handleLogoUpload(e.target.files[0]);
+        });
+
+        // أحداث رفع صورة البروفايل
+        avatarUploadArea.addEventListener('click', () => {
+            avatarFileInput.click();
+        });
+
+        avatarFileInput.addEventListener('change', (e) => {
+            handleAvatarUpload(e.target.files[0]);
+        });
+
+        // Update order status
+        document.getElementById('updateOrderStatusBtn').addEventListener('click', updateOrderStatusFromModal);
+
+        console.log('✅ Event listeners setup complete');
+    }
+
+    // Handle login محسن
+    async function handleLogin(e) {
+        e.preventDefault();
+        const password = document.getElementById('password').value;
+
+        if (!password) {
+            showNotification('Error', 'Please enter password', 'error');
+            return;
         }
 
-        // Render orders
-        function renderOrders() {
-            const tbody = document.querySelector('#ordersTable tbody');
-            tbody.innerHTML = '';
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/login`, {
+                method: 'POST',
+                body: JSON.stringify({ password })
+            });
 
-            orders.forEach(order => {
-                const itemsCount = order.items ? order.items.length : 0;
-                const itemsText = itemsCount === 1 ? '1 item' : `${itemsCount} items`;
-                const deliveryText = order.deliveryOption === 'delivery' ? 'Delivery' : 'Pickup';
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>#${order.id}</td>
-                    <td>${order.customerName}</td>
-                    <td>${order.phone}</td>
-                    <td>${itemsText}</td>
-                    <td>${order.total} DA</td>
-                    <td>${deliveryText}</td>
-                    <td>
-                        <select onchange="updateOrderStatus(${order.id}, this.value)" class="form-control">
-                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
-                            <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
-                            <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
-                        </select>
+            const result = await response.json();
+
+            if (result.success) {
+                authToken = result.token;
+                currentUser = result.user;
+                localStorage.setItem('adminToken', authToken);
+                console.log('✅ Login successful, user:', result.user.name);
+                showDashboard();
+                showNotification('Welcome!', `Hello ${result.user.name}`, 'success');
+            } else {
+                showNotification('Error', result.error || 'Invalid password', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Login error:', error);
+            showNotification('Login Failed', 'Please check your connection and try again', 'error');
+        }
+    }
+
+    // Handle logout
+    function handleLogout(e) {
+        e.preventDefault();
+        authToken = '';
+        currentUser = {};
+        localStorage.removeItem('adminToken');
+        console.log('👋 User logged out');
+        showLoginPage();
+        showNotification('Goodbye!', 'You have been logged out successfully', 'info');
+    }
+
+    // Switch between main tabs
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        document.getElementById(tabId).classList.add('active');
+
+        const headerTitle = document.querySelector('.header h1');
+        switch(tabId) {
+            case 'dashboard-tab':
+                headerTitle.textContent = 'Dashboard';
+                loadDashboardStats();
+                break;
+            case 'products-tab':
+                headerTitle.textContent = 'Products Management';
+                loadProducts();
+                break;
+            case 'orders-tab':
+                headerTitle.textContent = 'Orders Management';
+                loadOrders();
+                break;
+            case 'settings-tab':
+                headerTitle.textContent = 'Store Settings';
+                loadSettings();
+                break;
+            case 'profile-tab':
+                headerTitle.textContent = 'Profile Settings';
+                loadProfile();
+                break;
+        }
+    }
+
+    // Switch between settings tabs
+    function switchSettingsTab(tabId) {
+        document.querySelectorAll('#settings-tab .tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        document.querySelectorAll('#settings-tab .tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+    }
+
+    // Load dashboard data محسن
+    async function loadDashboardData() {
+        console.log('📊 Loading dashboard data...');
+        await Promise.all([
+            loadDashboardStats(),
+            loadRecentOrders(),
+            loadUserInfo()
+        ]);
+        console.log('✅ Dashboard data loaded');
+    }
+
+    // Load dashboard statistics محسن
+    async function loadDashboardStats() {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/dashboard/stats`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (response.ok) {
+                const stats = await response.json();
+                document.getElementById('ordersCount').textContent = stats.orders;
+                document.getElementById('productsCount').textContent = stats.products;
+                document.getElementById('visitorsCount').textContent = stats.visitors;
+                document.getElementById('revenueAmount').textContent = stats.revenue + ' DA';
+                console.log('📈 Stats loaded:', stats);
+            }
+        } catch (error) {
+            console.error('❌ Error loading dashboard stats:', error);
+            showNotification('Error', 'Failed to load statistics', 'error');
+        }
+    }
+
+    // Load recent orders محسن
+    async function loadRecentOrders() {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/orders`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (response.ok) {
+                orders = await response.json();
+                renderRecentOrders();
+                console.log('📦 Orders loaded:', orders.length);
+            }
+        } catch (error) {
+            console.error('❌ Error loading orders:', error);
+        }
+    }
+
+    // Render recent orders
+    function renderRecentOrders() {
+        const tbody = document.querySelector('#recentOrdersTable tbody');
+        tbody.innerHTML = '';
+
+        const recentOrders = orders.slice(-5).reverse();
+
+        if (recentOrders.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #6c757d;">
+                        No orders yet
                     </td>
-                    <td>${new Date(order.createdAt).toLocaleDateString()}</td>
-                    <td>
-                        <button class="action-btn btn-primary" onclick="viewOrderDetails(${order.id})">
-                            <i class="fas fa-eye"></i>
+                </tr>
+            `;
+            return;
+        }
+
+        recentOrders.forEach(order => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>#${order.id}</td>
+                <td>${order.customerName}</td>
+                <td>${order.total} DA</td>
+                <td><span class="status-badge ${order.status}">${order.status}</span></td>
+                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                <td>
+                    <button class="action-btn btn-primary" onclick="viewOrderDetails(${order.id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    // Load products محسن
+    async function loadProducts() {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/products`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (response.ok) {
+                products = await response.json();
+                renderProducts();
+                console.log('📦 Products loaded:', products.length);
+            }
+        } catch (error) {
+            console.error('❌ Error loading products:', error);
+            showNotification('Error', 'Failed to load products', 'error');
+        }
+    }
+
+    // Render products
+    function renderProducts() {
+        const tbody = document.querySelector('#productsTable tbody');
+        tbody.innerHTML = '';
+
+        if (products.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align: center; color: #6c757d;">
+                        No products yet. Click "Add Product" to get started.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        products.forEach(product => {
+            const imageUrl = product.images && product.images.length > 0 
+                ? product.images[0]
+                : 'https://via.placeholder.com/50x50?text=No+Image';
+            
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <img src="${imageUrl}" alt="${product.name}" class="product-image-table" 
+                         onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'">
+                </td>
+                <td>${product.name}</td>
+                <td>${product.price} DA</td>
+                <td>${product.quantity}</td>
+                <td>${product.category || 'Uncategorized'}</td>
+                <td>
+                    <span class="delivery-badge ${product.deliveryAvailable ? 'delivery-available' : 'delivery-unavailable'}">
+                        ${product.deliveryAvailable ? 'Available' : 'Pickup Only'}
+                    </span>
+                </td>
+                <td>
+                    <span class="status-badge ${product.status ? 'active' : 'inactive'}">
+                        ${product.status ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+                <td>
+                    <div class="action-group">
+                        <button class="action-btn btn-primary" onclick="editProduct(${product.id})">
+                            <i class="fas fa-edit"></i>
                         </button>
-                    </td>
-                `;
-                tbody.appendChild(row);
+                        <button class="action-btn btn-danger" onclick="deleteProduct(${product.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    // Load orders محسن
+    async function loadOrders() {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/orders`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
             });
-        }
 
-        // Load settings
-        async function loadSettings() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/settings`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    storeSettings = await response.json();
-                    populateSettingsForm();
-                }
-            } catch (error) {
-                console.error('Error loading settings:', error);
+            if (response.ok) {
+                orders = await response.json();
+                renderOrders();
+                console.log('📋 Orders loaded:', orders.length);
             }
+        } catch (error) {
+            console.error('❌ Error loading orders:', error);
+            showNotification('Error', 'Failed to load orders', 'error');
+        }
+    }
+
+    // Render orders
+    function renderOrders() {
+        const tbody = document.querySelector('#ordersTable tbody');
+        tbody.innerHTML = '';
+
+        if (orders.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align: center; color: #6c757d;">
+                        No orders yet
+                    </td>
+                </tr>
+            `;
+            return;
         }
 
-        // Populate settings form
-        function populateSettingsForm() {
-            // General settings
-            document.getElementById('storeName').value = storeSettings.storeName || '';
-            document.getElementById('heroTitle').value = storeSettings.heroTitle || '';
-            document.getElementById('heroDescription').value = storeSettings.heroDescription || '';
-            document.getElementById('currency').value = storeSettings.currency || 'DA';
-            document.getElementById('language').value = storeSettings.language || 'en';
-            document.getElementById('storeLogo').value = storeSettings.logo || '';
+        orders.forEach(order => {
+            const itemsCount = order.items ? order.items.length : 0;
+            const itemsText = itemsCount === 1 ? '1 item' : `${itemsCount} items`;
+            const deliveryText = order.deliveryOption === 'delivery' ? 'Delivery' : 'Pickup';
             
-            // Show logo preview
-            if (storeSettings.logo) {
-                document.getElementById('logoPreview').src = storeSettings.logo;
-                document.getElementById('logoPreview').style.display = 'block';
-                document.getElementById('loginLogo').src = storeSettings.logo;
-            }
-            
-            document.getElementById('storeStatus').value = storeSettings.storeStatus ? 'true' : 'false';
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>#${order.id}</td>
+                <td>${order.customerName}</td>
+                <td>${order.phone}</td>
+                <td>${itemsText}</td>
+                <td>${order.total} DA</td>
+                <td>${deliveryText}</td>
+                <td>
+                    <select onchange="updateOrderStatus(${order.id}, this.value)" class="form-control">
+                        <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                        <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
+                        <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                    </select>
+                </td>
+                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                <td>
+                    <button class="action-btn btn-primary" onclick="viewOrderDetails(${order.id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
 
-            // Theme settings
-            if (storeSettings.theme) {
-                document.getElementById('primaryColor').value = storeSettings.theme.primary;
-                document.getElementById('primaryColorText').value = storeSettings.theme.primary;
-                document.getElementById('secondaryColor').value = storeSettings.theme.secondary;
-                document.getElementById('secondaryColorText').value = storeSettings.theme.secondary;
-                document.getElementById('accentColor').value = storeSettings.theme.accent;
-                document.getElementById('accentColorText').value = storeSettings.theme.accent;
-                document.getElementById('backgroundColor').value = storeSettings.theme.background || '#ffffff';
-                document.getElementById('backgroundColorText').value = storeSettings.theme.background || '#ffffff';
-                document.getElementById('textColor').value = storeSettings.theme.text || '#212529';
-                document.getElementById('textColorText').value = storeSettings.theme.text || '#212529';
-            }
-
-            // Contact settings
-            if (storeSettings.contact) {
-                document.getElementById('contactPhone').value = storeSettings.contact.phone || '';
-                document.getElementById('contactWhatsapp').value = storeSettings.contact.whatsapp || '';
-                document.getElementById('contactEmail').value = storeSettings.contact.email || '';
-                document.getElementById('contactAddress').value = storeSettings.contact.address || '';
-                document.getElementById('workingHours').value = storeSettings.contact.workingHours || '';
-                document.getElementById('workingDays').value = storeSettings.contact.workingDays || '';
-            }
-
-            // Social media settings
-            if (storeSettings.social) {
-                document.getElementById('facebookUrl').value = storeSettings.social.facebook || '';
-                document.getElementById('twitterUrl').value = storeSettings.social.twitter || '';
-                document.getElementById('instagramUrl').value = storeSettings.social.instagram || '';
-                document.getElementById('youtubeUrl').value = storeSettings.social.youtube || '';
-            }
-        }
-
-        // Load profile
-        async function loadProfile() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/settings`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('adminNameInput').value = data.user.name;
-                    document.getElementById('adminRole').value = data.user.role;
-                    document.getElementById('adminAvatar').value = data.user.avatar || '';
-                    
-                    // Load avatar preview
-                    if (data.user.avatar) {
-                        document.getElementById('avatarPreview').src = data.user.avatar;
-                        document.getElementById('avatarPreview').style.display = 'block';
-                    }
+    // Load settings محسن
+    async function loadSettings() {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/settings`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
                 }
-            } catch (error) {
-                console.error('Error loading profile:', error);
+            });
+
+            if (response.ok) {
+                storeSettings = await response.json();
+                populateSettingsForm();
+                console.log('⚙️ Settings loaded');
             }
+        } catch (error) {
+            console.error('❌ Error loading settings:', error);
+            showNotification('Error', 'Failed to load settings', 'error');
+        }
+    }
+
+    // Populate settings form
+    function populateSettingsForm() {
+        // General settings
+        document.getElementById('storeName').value = storeSettings.storeName || '';
+        document.getElementById('heroTitle').value = storeSettings.heroTitle || '';
+        document.getElementById('heroDescription').value = storeSettings.heroDescription || '';
+        document.getElementById('currency').value = storeSettings.currency || 'DA';
+        document.getElementById('language').value = storeSettings.language || 'en';
+        document.getElementById('storeLogo').value = storeSettings.logo || '';
+        
+        // Show logo preview
+        if (storeSettings.logo) {
+            document.getElementById('logoPreview').src = storeSettings.logo;
+            document.getElementById('logoPreview').style.display = 'block';
+            document.getElementById('loginLogo').src = storeSettings.logo;
+        }
+        
+        document.getElementById('storeStatus').value = storeSettings.storeStatus ? 'true' : 'false';
+
+        // Theme settings
+        if (storeSettings.theme) {
+            document.getElementById('primaryColor').value = storeSettings.theme.primary;
+            document.getElementById('primaryColorText').value = storeSettings.theme.primary;
+            document.getElementById('secondaryColor').value = storeSettings.theme.secondary;
+            document.getElementById('secondaryColorText').value = storeSettings.theme.secondary;
+            document.getElementById('accentColor').value = storeSettings.theme.accent;
+            document.getElementById('accentColorText').value = storeSettings.theme.accent;
+            document.getElementById('backgroundColor').value = storeSettings.theme.background || '#ffffff';
+            document.getElementById('backgroundColorText').value = storeSettings.theme.background || '#ffffff';
+            document.getElementById('textColor').value = storeSettings.theme.text || '#212529';
+            document.getElementById('textColorText').value = storeSettings.theme.text || '#212529';
         }
 
-        // Load user info
-        function loadUserInfo() {
+        // Contact settings
+        if (storeSettings.contact) {
+            document.getElementById('contactPhone').value = storeSettings.contact.phone || '';
+            document.getElementById('contactWhatsapp').value = storeSettings.contact.whatsapp || '';
+            document.getElementById('contactEmail').value = storeSettings.contact.email || '';
+            document.getElementById('contactAddress').value = storeSettings.contact.address || '';
+            document.getElementById('workingHours').value = storeSettings.contact.workingHours || '';
+            document.getElementById('workingDays').value = storeSettings.contact.workingDays || '';
+        }
+
+        // Social media settings
+        if (storeSettings.social) {
+            document.getElementById('facebookUrl').value = storeSettings.social.facebook || '';
+            document.getElementById('twitterUrl').value = storeSettings.social.twitter || '';
+            document.getElementById('instagramUrl').value = storeSettings.social.instagram || '';
+            document.getElementById('youtubeUrl').value = storeSettings.social.youtube || '';
+        }
+    }
+
+    // Load profile محسن بشكل كبير
+    async function loadProfile() {
+        try {
+            console.log('👤 Loading profile data...');
+            const response = await safeFetch(`${API_BASE_URL}/user/profile`, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (response.ok) {
+                const userData = await response.json();
+                console.log('✅ Profile data received:', userData);
+                
+                // تحديث الحقول
+                document.getElementById('adminNameInput').value = userData.name || '';
+                document.getElementById('adminRole').value = userData.role || 'System Administrator';
+                document.getElementById('adminAvatar').value = userData.avatar || '';
+                
+                // تحديث معاينة الصورة
+                const avatarPreview = document.getElementById('avatarPreview');
+                if (userData.avatar) {
+                    avatarPreview.src = userData.avatar;
+                    avatarPreview.style.display = 'block';
+                    console.log('🖼️ Avatar loaded');
+                } else {
+                    avatarPreview.style.display = 'none';
+                }
+
+                // تحديث معلومات المستخدم في الواجهة
+                loadUserInfo();
+                
+            } else {
+                console.error('❌ Failed to load profile data');
+                showNotification('Error', 'Failed to load profile data', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error loading profile:', error);
+            showNotification('Error', 'Failed to load profile: ' + error.message, 'error');
+        }
+    }
+
+    // Load user info
+    function loadUserInfo() {
+        if (currentUser && currentUser.name) {
             document.getElementById('adminName').textContent = currentUser.name;
             const adminAvatar = document.getElementById('adminAvatar');
             if (currentUser.avatar) {
@@ -2003,580 +2190,650 @@
             } else {
                 adminAvatar.innerHTML = '<i class="fas fa-user"></i>';
             }
+            console.log('👤 User info updated:', currentUser.name);
         }
+    }
 
-        // Setup color pickers
-        function setupColorPickers() {
-            // Primary color
-            document.getElementById('primaryColor').addEventListener('input', (e) => {
-                document.getElementById('primaryColorText').value = e.target.value;
-            });
-            document.getElementById('primaryColorText').addEventListener('input', (e) => {
-                document.getElementById('primaryColor').value = e.target.value;
-            });
+    // Setup color pickers
+    function setupColorPickers() {
+        // Primary color
+        document.getElementById('primaryColor').addEventListener('input', (e) => {
+            document.getElementById('primaryColorText').value = e.target.value;
+        });
+        document.getElementById('primaryColorText').addEventListener('input', (e) => {
+            document.getElementById('primaryColor').value = e.target.value;
+        });
 
-            // Secondary color
-            document.getElementById('secondaryColor').addEventListener('input', (e) => {
-                document.getElementById('secondaryColorText').value = e.target.value;
-            });
-            document.getElementById('secondaryColorText').addEventListener('input', (e) => {
-                document.getElementById('secondaryColor').value = e.target.value;
-            });
+        // Secondary color
+        document.getElementById('secondaryColor').addEventListener('input', (e) => {
+            document.getElementById('secondaryColorText').value = e.target.value;
+        });
+        document.getElementById('secondaryColorText').addEventListener('input', (e) => {
+            document.getElementById('secondaryColor').value = e.target.value;
+        });
 
-            // Accent color
-            document.getElementById('accentColor').addEventListener('input', (e) => {
-                document.getElementById('accentColorText').value = e.target.value;
-            });
-            document.getElementById('accentColorText').addEventListener('input', (e) => {
-                document.getElementById('accentColor').value = e.target.value;
-            });
+        // Accent color
+        document.getElementById('accentColor').addEventListener('input', (e) => {
+            document.getElementById('accentColorText').value = e.target.value;
+        });
+        document.getElementById('accentColorText').addEventListener('input', (e) => {
+            document.getElementById('accentColor').value = e.target.value;
+        });
 
-            // Background color
-            document.getElementById('backgroundColor').addEventListener('input', (e) => {
-                document.getElementById('backgroundColorText').value = e.target.value;
-            });
-            document.getElementById('backgroundColorText').addEventListener('input', (e) => {
-                document.getElementById('backgroundColor').value = e.target.value;
-            });
+        // Background color
+        document.getElementById('backgroundColor').addEventListener('input', (e) => {
+            document.getElementById('backgroundColorText').value = e.target.value;
+        });
+        document.getElementById('backgroundColorText').addEventListener('input', (e) => {
+            document.getElementById('backgroundColor').value = e.target.value;
+        });
 
-            // Text color
-            document.getElementById('textColor').addEventListener('input', (e) => {
-                document.getElementById('textColorText').value = e.target.value;
-            });
-            document.getElementById('textColorText').addEventListener('input', (e) => {
-                document.getElementById('textColor').value = e.target.value;
-            });
-        }
+        // Text color
+        document.getElementById('textColor').addEventListener('input', (e) => {
+            document.getElementById('textColorText').value = e.target.value;
+        });
+        document.getElementById('textColorText').addEventListener('input', (e) => {
+            document.getElementById('textColor').value = e.target.value;
+        });
+    }
 
-        // Handle settings save
-        async function handleSettingsSave(e) {
-            e.preventDefault();
-            
-            const settings = {
-                storeName: document.getElementById('storeName').value,
-                heroTitle: document.getElementById('heroTitle').value,
-                heroDescription: document.getElementById('heroDescription').value,
-                currency: document.getElementById('currency').value,
-                language: document.getElementById('language').value,
-                logo: document.getElementById('storeLogo').value,
-                storeStatus: document.getElementById('storeStatus').value === 'true',
-                theme: {
-                    primary: document.getElementById('primaryColor').value,
-                    secondary: document.getElementById('secondaryColor').value,
-                    accent: document.getElementById('accentColor').value,
-                    background: document.getElementById('backgroundColor').value,
-                    text: document.getElementById('textColor').value
+    // Handle settings save محسن
+    async function handleSettingsSave(e) {
+        e.preventDefault();
+        
+        const settings = {
+            storeName: document.getElementById('storeName').value,
+            heroTitle: document.getElementById('heroTitle').value,
+            heroDescription: document.getElementById('heroDescription').value,
+            currency: document.getElementById('currency').value,
+            language: document.getElementById('language').value,
+            logo: document.getElementById('storeLogo').value,
+            storeStatus: document.getElementById('storeStatus').value === 'true',
+            theme: {
+                primary: document.getElementById('primaryColor').value,
+                secondary: document.getElementById('secondaryColor').value,
+                accent: document.getElementById('accentColor').value,
+                background: document.getElementById('backgroundColor').value,
+                text: document.getElementById('textColor').value
+            },
+            contact: {
+                phone: document.getElementById('contactPhone').value,
+                whatsapp: document.getElementById('contactWhatsapp').value,
+                email: document.getElementById('contactEmail').value,
+                address: document.getElementById('contactAddress').value,
+                workingHours: document.getElementById('workingHours').value,
+                workingDays: document.getElementById('workingDays').value
+            },
+            social: {
+                facebook: document.getElementById('facebookUrl').value,
+                twitter: document.getElementById('twitterUrl').value,
+                instagram: document.getElementById('instagramUrl').value,
+                youtube: document.getElementById('youtubeUrl').value
+            }
+        };
+
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/settings`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
                 },
-                contact: {
-                    phone: document.getElementById('contactPhone').value,
-                    whatsapp: document.getElementById('contactWhatsapp').value,
-                    email: document.getElementById('contactEmail').value,
-                    address: document.getElementById('contactAddress').value,
-                    workingHours: document.getElementById('workingHours').value,
-                    workingDays: document.getElementById('workingDays').value
+                body: JSON.stringify(settings)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('✅ Settings saved successfully');
+                showNotification('Success', 'Settings saved successfully!');
+                // إعادة تحميل الإعدادات للتأكد
+                setTimeout(() => loadSettings(), 1000);
+            } else {
+                console.error('❌ Failed to save settings:', result.error);
+                showNotification('Error', result.error || 'Failed to save settings', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error saving settings:', error);
+            showNotification('Error', 'Failed to save settings: ' + error.message, 'error');
+        }
+    }
+
+    // Handle profile update محسن بشكل كبير
+    async function handleProfileUpdate(e) {
+        e.preventDefault();
+        
+        const profileData = {
+            name: document.getElementById('adminNameInput').value,
+            avatar: document.getElementById('adminAvatar').value
+        };
+
+        // التحقق من البيانات
+        if (!profileData.name.trim()) {
+            showNotification('Error', 'Please enter your name', 'error');
+            return;
+        }
+
+        try {
+            console.log('💾 Saving profile data...', profileData);
+            
+            const response = await safeFetch(`${API_BASE_URL}/user/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
                 },
-                social: {
-                    facebook: document.getElementById('facebookUrl').value,
-                    twitter: document.getElementById('twitterUrl').value,
-                    instagram: document.getElementById('instagramUrl').value,
-                    youtube: document.getElementById('youtubeUrl').value
-                }
-            };
+                body: JSON.stringify(profileData)
+            });
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/settings`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify(settings)
-                });
+            const result = await response.json();
 
-                if (response.ok) {
-                    showNotification('Success', 'Settings saved successfully!');
-                } else {
-                    showNotification('Error', 'Failed to save settings', 'error');
-                }
-            } catch (error) {
-                console.error('Error saving settings:', error);
-                showNotification('Error', 'Failed to save settings', 'error');
+            if (result.success) {
+                console.log('✅ Profile saved successfully:', result.user);
+                currentUser = result.user;
+                
+                // تحديث الواجهة فوراً
+                loadUserInfo();
+                
+                showNotification('Success', 'Profile updated successfully!');
+                
+                // إعادة تحميل البيانات للتأكد من التحديث
+                setTimeout(() => {
+                    loadProfile();
+                }, 500);
+                
+            } else {
+                console.error('❌ Failed to save profile:', result.error);
+                showNotification('Error', result.error || 'Failed to update profile', 'error');
             }
+        } catch (error) {
+            console.error('❌ Error updating profile:', error);
+            showNotification('Error', 'Failed to update profile: ' + error.message, 'error');
+        }
+    }
+
+    // Handle password change محسن
+    async function handlePasswordChange(e) {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            showNotification('Error', 'All password fields are required', 'error');
+            return;
         }
 
-        // Handle profile update
-        async function handleProfileUpdate(e) {
-            e.preventDefault();
-            
-            const profileData = {
-                name: document.getElementById('adminNameInput').value,
-                avatar: document.getElementById('adminAvatar').value
-            };
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/user/profile`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify(profileData)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    currentUser = result.user;
-                    loadUserInfo();
-                    showNotification('Success', 'Profile updated successfully!');
-                } else {
-                    showNotification('Error', 'Failed to update profile', 'error');
-                }
-            } catch (error) {
-                console.error('Error updating profile:', error);
-                showNotification('Error', 'Failed to update profile', 'error');
-            }
+        if (newPassword !== confirmPassword) {
+            showNotification('Error', 'New passwords do not match', 'error');
+            return;
         }
 
-        // Handle password change
-        async function handlePasswordChange(e) {
-            e.preventDefault();
-            
-            const currentPassword = document.getElementById('currentPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+        if (newPassword.length < 6) {
+            showNotification('Error', 'New password must be at least 6 characters', 'error');
+            return;
+        }
 
-            if (newPassword !== confirmPassword) {
-                showNotification('Error', 'New passwords do not match', 'error');
-                return;
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({
+                    currentPassword,
+                    newPassword
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showNotification('Success', 'Password changed successfully!');
+                document.getElementById('passwordForm').reset();
+                console.log('🔑 Password changed successfully');
+            } else {
+                showNotification('Error', result.error || 'Failed to change password', 'error');
             }
+        } catch (error) {
+            console.error('❌ Error changing password:', error);
+            showNotification('Error', 'Failed to change password: ' + error.message, 'error');
+        }
+    }
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/change-password`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({
-                        currentPassword,
-                        newPassword
-                    })
-                });
+    // معالجة اختيار الملفات
+    function handleFileSelect(e) {
+        const files = e.target.files;
+        handleFiles(files);
+    }
 
+    // معالجة الملفات
+    async function handleFiles(files) {
+        const validFiles = Array.from(files).filter(file => {
+            const isValidType = file.type.startsWith('image/');
+            const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
+            
+            if (!isValidType) {
+                showNotification('Error', 'Only image files are allowed', 'error');
+                return false;
+            }
+            if (!isValidSize) {
+                showNotification('Error', 'File size must be less than 10MB', 'error');
+                return false;
+            }
+            
+            return true;
+        });
+
+        for (const file of validFiles) {
+            await uploadFile(file);
+        }
+    }
+
+    // رفع ملف واحد
+    async function uploadFile(file) {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            progressBar.style.display = 'block';
+            progressFill.style.width = '50%';
+            
+            const response = await fetch(`${API_BASE_URL}/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: formData
+            });
+
+            if (response.ok) {
                 const result = await response.json();
-
                 if (result.success) {
-                    showNotification('Success', 'Password changed successfully!');
-                    document.getElementById('passwordForm').reset();
-                } else {
-                    showNotification('Error', result.error || 'Failed to change password', 'error');
-                }
-            } catch (error) {
-                console.error('Error changing password:', error);
-                showNotification('Error', 'Failed to change password', 'error');
-            }
-        }
-
-        // معالجة اختيار الملفات
-        function handleFileSelect(e) {
-            const files = e.target.files;
-            handleFiles(files);
-        }
-
-        // معالجة الملفات
-        async function handleFiles(files) {
-            const validFiles = Array.from(files).filter(file => {
-                const isValidType = file.type.startsWith('image/');
-                const isValidSize = file.size <= 10 * 1024 * 1024; // 10MB
-                
-                if (!isValidType) {
-                    showNotification('Error', 'Only image files are allowed', 'error');
-                    return false;
-                }
-                if (!isValidSize) {
-                    showNotification('Error', 'File size must be less than 10MB', 'error');
-                    return false;
-                }
-                
-                return true;
-            });
-
-            for (const file of validFiles) {
-                await uploadFile(file);
-            }
-        }
-
-        // رفع ملف واحد
-        async function uploadFile(file) {
-            const formData = new FormData();
-            formData.append('image', file);
-
-            try {
-                progressBar.style.display = 'block';
-                progressFill.style.width = '50%';
-                
-                const response = await fetch(`${API_BASE_URL}/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        uploadedImages.push(result.imageUrl);
-                        updateImagePreviews();
-                        updateProductImagesTextarea();
-                        showNotification('Success', 'Image uploaded successfully');
-                        progressFill.style.width = '100%';
-                    } else {
-                        throw new Error('Upload failed');
-                    }
+                    uploadedImages.push(result.imageUrl);
+                    updateImagePreviews();
+                    updateProductImagesTextarea();
+                    showNotification('Success', 'Image uploaded successfully');
+                    progressFill.style.width = '100%';
+                    console.log('🖼️ Image uploaded:', result.imageUrl);
                 } else {
                     throw new Error('Upload failed');
                 }
-            } catch (error) {
-                console.error('Upload error:', error);
-                showNotification('Error', 'Failed to upload image: ' + error.message, 'error');
-            } finally {
-                setTimeout(() => {
-                    progressBar.style.display = 'none';
-                    progressFill.style.width = '0%';
-                }, 1000);
+            } else {
+                throw new Error('Upload failed');
             }
+        } catch (error) {
+            console.error('❌ Upload error:', error);
+            showNotification('Error', 'Failed to upload image: ' + error.message, 'error');
+        } finally {
+            setTimeout(() => {
+                progressBar.style.display = 'none';
+                progressFill.style.width = '0%';
+            }, 1000);
+        }
+    }
+
+    // رفع لوجو المتجر
+    async function handleLogoUpload(file) {
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            showNotification('Error', 'Only image files are allowed', 'error');
+            return;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) {
+            showNotification('Error', 'File size must be less than 10MB', 'error');
+            return;
         }
 
-        // رفع لوجو المتجر
-        async function handleLogoUpload(file) {
-            if (!file) return;
-            
-            if (!file.type.startsWith('image/')) {
-                showNotification('Error', 'Only image files are allowed', 'error');
-                return;
-            }
-            
-            if (file.size > 10 * 1024 * 1024) {
-                showNotification('Error', 'File size must be less than 10MB', 'error');
-                return;
-            }
+        const formData = new FormData();
+        formData.append('image', file);
 
-            const formData = new FormData();
-            formData.append('image', file);
+        try {
+            const response = await fetch(`${API_BASE_URL}/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: formData
+            });
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        document.getElementById('storeLogo').value = result.imageUrl;
-                        document.getElementById('logoPreview').src = result.imageUrl;
-                        document.getElementById('logoPreview').style.display = 'block';
-                        showNotification('Success', 'Logo uploaded successfully');
-                    }
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('storeLogo').value = result.imageUrl;
+                    document.getElementById('logoPreview').src = result.imageUrl;
+                    document.getElementById('logoPreview').style.display = 'block';
+                    showNotification('Success', 'Logo uploaded successfully');
+                    console.log('🏪 Logo uploaded:', result.imageUrl);
                 }
-            } catch (error) {
-                console.error('Logo upload error:', error);
-                showNotification('Error', 'Failed to upload logo', 'error');
             }
+        } catch (error) {
+            console.error('❌ Logo upload error:', error);
+            showNotification('Error', 'Failed to upload logo', 'error');
+        }
+    }
+
+    // رفع صورة البروفايل
+    async function handleAvatarUpload(file) {
+        if (!file) return;
+        
+        if (!file.type.startsWith('image/')) {
+            showNotification('Error', 'Only image files are allowed', 'error');
+            return;
+        }
+        
+        if (file.size > 10 * 1024 * 1024) {
+            showNotification('Error', 'File size must be less than 10MB', 'error');
+            return;
         }
 
-        // رفع صورة البروفايل
-        async function handleAvatarUpload(file) {
-            if (!file) return;
-            
-            if (!file.type.startsWith('image/')) {
-                showNotification('Error', 'Only image files are allowed', 'error');
-                return;
-            }
-            
-            if (file.size > 10 * 1024 * 1024) {
-                showNotification('Error', 'File size must be less than 10MB', 'error');
-                return;
-            }
+        const formData = new FormData();
+        formData.append('image', file);
 
-            const formData = new FormData();
-            formData.append('image', file);
+        try {
+            const response = await fetch(`${API_BASE_URL}/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: formData
+            });
 
-            try {
-                const response = await fetch(`${API_BASE_URL}/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: formData
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        document.getElementById('adminAvatar').value = result.imageUrl;
-                        document.getElementById('avatarPreview').src = result.imageUrl;
-                        document.getElementById('avatarPreview').style.display = 'block';
-                        showNotification('Success', 'Profile picture uploaded successfully');
-                    }
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('adminAvatar').value = result.imageUrl;
+                    document.getElementById('avatarPreview').src = result.imageUrl;
+                    document.getElementById('avatarPreview').style.display = 'block';
+                    showNotification('Success', 'Profile picture uploaded successfully');
+                    console.log('👤 Avatar uploaded:', result.imageUrl);
                 }
-            } catch (error) {
-                console.error('Avatar upload error:', error);
-                showNotification('Error', 'Failed to upload profile picture', 'error');
             }
+        } catch (error) {
+            console.error('❌ Avatar upload error:', error);
+            showNotification('Error', 'Failed to upload profile picture', 'error');
+        }
+    }
+
+    // تحديث معاينة الصور
+    function updateImagePreviews() {
+        imagePreviewContainer.innerHTML = '';
+        
+        uploadedImages.forEach((imageUrl, index) => {
+            const previewItem = document.createElement('div');
+            previewItem.className = 'image-preview-item';
+            previewItem.innerHTML = `
+                <img src="${imageUrl}" alt="Preview ${index + 1}">
+                <button type="button" class="image-preview-remove" onclick="removeImage(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            imagePreviewContainer.appendChild(previewItem);
+        });
+    }
+
+    // إزالة صورة
+    function removeImage(index) {
+        uploadedImages.splice(index, 1);
+        updateImagePreviews();
+        updateProductImagesTextarea();
+    }
+
+    // تحديث حقل روابط الصور
+    function updateProductImagesTextarea() {
+        productImages.value = uploadedImages.join('\n');
+    }
+
+    // Open product modal
+    function openProductModal(product = null) {
+        const modal = document.getElementById('productModal');
+        const title = document.getElementById('productModalTitle');
+        const form = document.getElementById('productForm');
+
+        // إعادة تعيين الصور المرفوعة
+        uploadedImages = [];
+        updateImagePreviews();
+        updateProductImagesTextarea();
+
+        if (product) {
+            title.textContent = 'Edit Product';
+            document.getElementById('productId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productPrice').value = product.price;
+            document.getElementById('productQuantity').value = product.quantity;
+            document.getElementById('productCategory').value = product.category || '';
+            document.getElementById('productDelivery').value = product.deliveryAvailable ? 'true' : 'false';
+            
+            // تحميل الصور الحالية للمنتج
+            if (product.images && product.images.length > 0) {
+                uploadedImages = [...product.images];
+                updateImagePreviews();
+                updateProductImagesTextarea();
+            }
+            
+            document.getElementById('productStatus').value = product.status ? 'true' : 'false';
+        } else {
+            title.textContent = 'Add Product';
+            form.reset();
+            document.getElementById('productId').value = '';
+            // وضع افتراضي Active
+            document.getElementById('productStatus').value = 'true';
+            document.getElementById('productDelivery').value = 'true';
         }
 
-        // تحديث معاينة الصور
-        function updateImagePreviews() {
-            imagePreviewContainer.innerHTML = '';
+        modal.style.display = 'flex';
+    }
+
+    // Handle product save محسن
+    async function handleProductSave(e) {
+        e.preventDefault();
+        
+        const productData = {
+            name: document.getElementById('productName').value,
+            description: document.getElementById('productDescription').value,
+            price: parseFloat(document.getElementById('productPrice').value),
+            quantity: parseInt(document.getElementById('productQuantity').value),
+            category: document.getElementById('productCategory').value,
+            deliveryAvailable: document.getElementById('productDelivery').value === 'true',
+            status: document.getElementById('productStatus').value === 'true',
+            images: uploadedImages
+        };
+
+        const productId = document.getElementById('productId').value;
+
+        try {
+            const url = productId 
+                ? `${API_BASE_URL}/products/${productId}`
+                : `${API_BASE_URL}/products`;
             
-            uploadedImages.forEach((imageUrl, index) => {
-                const previewItem = document.createElement('div');
-                previewItem.className = 'image-preview-item';
-                previewItem.innerHTML = `
-                    <img src="${imageUrl}" alt="Preview ${index + 1}">
-                    <button type="button" class="image-preview-remove" onclick="removeImage(${index})">
-                        <i class="fas fa-times"></i>
-                    </button>
+            const method = productId ? 'PUT' : 'POST';
+
+            const response = await safeFetch(url, {
+                method: method,
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify(productData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showNotification('Success', 'Product saved successfully!');
+                document.getElementById('productModal').style.display = 'none';
+                await loadProducts();
+                console.log('✅ Product saved:', result.product);
+            } else {
+                showNotification('Error', result.error || 'Failed to save product', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error saving product:', error);
+            showNotification('Error', 'Failed to save product: ' + error.message, 'error');
+        }
+    }
+
+    // Edit product
+    function editProduct(productId) {
+        const product = products.find(p => p.id === productId);
+        if (product) {
+            openProductModal(product);
+        }
+    }
+
+    // Delete product محسن
+    async function deleteProduct(productId) {
+        if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/products/${productId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            });
+
+            if (response.ok) {
+                showNotification('Success', 'Product deleted successfully!');
+                await loadProducts();
+                console.log('🗑️ Product deleted:', productId);
+            } else {
+                showNotification('Error', 'Failed to delete product', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Error deleting product:', error);
+            showNotification('Error', 'Failed to delete product: ' + error.message, 'error');
+        }
+    }
+
+    // View order details
+    function viewOrderDetails(orderId) {
+        const order = orders.find(o => o.id === orderId);
+        if (!order) return;
+
+        currentOrderId = orderId;
+        
+        document.getElementById('orderDetailsId').textContent = order.id;
+        document.getElementById('orderCustomerName').textContent = order.customerName;
+        document.getElementById('orderCustomerPhone').textContent = order.phone;
+        document.getElementById('orderCustomerAddress').textContent = order.address;
+        document.getElementById('orderDeliveryOption').textContent = order.deliveryOption === 'delivery' ? 'Home Delivery' : 'Store Pickup';
+        document.getElementById('orderTotalAmount').textContent = order.total + ' DA';
+        document.getElementById('orderNotes').textContent = order.description || 'No special notes provided.';
+        document.getElementById('orderStatusSelect').value = order.status;
+
+        // عرض العناصر
+        const itemsList = document.getElementById('orderItemsList');
+        itemsList.innerHTML = '';
+        
+        if (order.items && order.items.length > 0) {
+            order.items.forEach((item, index) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'order-item';
+                itemElement.innerHTML = `
+                    <div class="order-item-details">
+                        <strong>${item.productName}</strong><br>
+                        <small>Quantity: ${item.quantity} × ${item.unitPrice} DA</small>
+                    </div>
+                    <div class="order-item-price">
+                        ${item.total} DA
+                    </div>
                 `;
-                imagePreviewContainer.appendChild(previewItem);
+                itemsList.appendChild(itemElement);
             });
         }
 
-        // إزالة صورة
-        function removeImage(index) {
-            uploadedImages.splice(index, 1);
-            updateImagePreviews();
-            updateProductImagesTextarea();
-        }
+        orderDetailsModal.style.display = 'flex';
+    }
 
-        // تحديث حقل روابط الصور
-        function updateProductImagesTextarea() {
-            productImages.value = uploadedImages.join('\n');
-        }
+    // Update order status from modal
+    async function updateOrderStatusFromModal() {
+        const status = document.getElementById('orderStatusSelect').value;
+        
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/orders/${currentOrderId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ status })
+            });
 
-        // Open product modal
-        function openProductModal(product = null) {
-            const modal = document.getElementById('productModal');
-            const title = document.getElementById('productModalTitle');
-            const form = document.getElementById('productForm');
-
-            // إعادة تعيين الصور المرفوعة
-            uploadedImages = [];
-            updateImagePreviews();
-            updateProductImagesTextarea();
-
-            if (product) {
-                title.textContent = 'Edit Product';
-                document.getElementById('productId').value = product.id;
-                document.getElementById('productName').value = product.name;
-                document.getElementById('productDescription').value = product.description || '';
-                document.getElementById('productPrice').value = product.price;
-                document.getElementById('productQuantity').value = product.quantity;
-                document.getElementById('productCategory').value = product.category || '';
-                document.getElementById('productDelivery').value = product.deliveryAvailable ? 'true' : 'false';
-                
-                // تحميل الصور الحالية للمنتج
-                if (product.images && product.images.length > 0) {
-                    uploadedImages = [...product.images];
-                    updateImagePreviews();
-                    updateProductImagesTextarea();
-                }
-                
-                document.getElementById('productStatus').value = product.status ? 'true' : 'false';
+            if (response.ok) {
+                showNotification('Success', 'Order status updated successfully!');
+                orderDetailsModal.style.display = 'none';
+                loadOrders();
+                loadRecentOrders();
+                loadDashboardStats();
+                console.log('📦 Order status updated:', currentOrderId, status);
             } else {
-                title.textContent = 'Add Product';
-                form.reset();
-                document.getElementById('productId').value = '';
-                // وضع افتراضي Active
-                document.getElementById('productStatus').value = 'true';
-                document.getElementById('productDelivery').value = 'true';
-            }
-
-            modal.style.display = 'flex';
-        }
-
-        // Handle product save
-        async function handleProductSave(e) {
-            e.preventDefault();
-            
-            const productData = {
-                name: document.getElementById('productName').value,
-                description: document.getElementById('productDescription').value,
-                price: parseFloat(document.getElementById('productPrice').value),
-                quantity: parseInt(document.getElementById('productQuantity').value),
-                category: document.getElementById('productCategory').value,
-                deliveryAvailable: document.getElementById('productDelivery').value === 'true',
-                status: document.getElementById('productStatus').value === 'true',
-                images: uploadedImages // استخدام الصور المرفوعة
-            };
-
-            const productId = document.getElementById('productId').value;
-
-            try {
-                const url = productId 
-                    ? `${API_BASE_URL}/products/${productId}`
-                    : `${API_BASE_URL}/products`;
-                
-                const method = productId ? 'PUT' : 'POST';
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify(productData)
-                });
-
-                if (response.ok) {
-                    showNotification('Success', 'Product saved successfully!');
-                    document.getElementById('productModal').style.display = 'none';
-                    await loadProducts(); // إعادة تحميل المنتجات للتأكد من تحديث البيانات
-                } else {
-                    showNotification('Error', 'Failed to save product', 'error');
-                }
-            } catch (error) {
-                console.error('Error saving product:', error);
-                showNotification('Error', 'Failed to save product', 'error');
-            }
-        }
-
-        // Edit product
-        function editProduct(productId) {
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                openProductModal(product);
-            }
-        }
-
-        // Delete product
-        async function deleteProduct(productId) {
-            if (!confirm('Are you sure you want to delete this product?')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-
-                if (response.ok) {
-                    showNotification('Success', 'Product deleted successfully!');
-                    await loadProducts(); // إعادة تحميل المنتجات بعد الحذف
-                } else {
-                    showNotification('Error', 'Failed to delete product', 'error');
-                }
-            } catch (error) {
-                console.error('Error deleting product:', error);
-                showNotification('Error', 'Failed to delete product', 'error');
-            }
-        }
-
-        // View order details
-        function viewOrderDetails(orderId) {
-            const order = orders.find(o => o.id === orderId);
-            if (!order) return;
-
-            currentOrderId = orderId;
-            
-            document.getElementById('orderDetailsId').textContent = order.id;
-            document.getElementById('orderCustomerName').textContent = order.customerName;
-            document.getElementById('orderCustomerPhone').textContent = order.phone;
-            document.getElementById('orderCustomerAddress').textContent = order.address;
-            document.getElementById('orderDeliveryOption').textContent = order.deliveryOption === 'delivery' ? 'Home Delivery' : 'Store Pickup';
-            document.getElementById('orderTotalAmount').textContent = order.total + ' DA';
-            document.getElementById('orderNotes').textContent = order.description || 'No special notes provided.';
-            document.getElementById('orderStatusSelect').value = order.status;
-
-            // عرض العناصر
-            const itemsList = document.getElementById('orderItemsList');
-            itemsList.innerHTML = '';
-            
-            if (order.items && order.items.length > 0) {
-                order.items.forEach((item, index) => {
-                    const itemElement = document.createElement('div');
-                    itemElement.className = 'order-item';
-                    itemElement.innerHTML = `
-                        <div class="order-item-details">
-                            <strong>${item.productName}</strong><br>
-                            <small>Quantity: ${item.quantity} × ${item.unitPrice} DA</small>
-                        </div>
-                        <div class="order-item-price">
-                            ${item.total} DA
-                        </div>
-                    `;
-                    itemsList.appendChild(itemElement);
-                });
-            }
-
-            orderDetailsModal.style.display = 'flex';
-        }
-
-        // Update order status from modal
-        async function updateOrderStatusFromModal() {
-            const status = document.getElementById('orderStatusSelect').value;
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/orders/${currentOrderId}/status`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ status })
-                });
-
-                if (response.ok) {
-                    showNotification('Success', 'Order status updated successfully!');
-                    orderDetailsModal.style.display = 'none';
-                    loadOrders();
-                    loadRecentOrders();
-                    loadDashboardStats();
-                } else {
-                    showNotification('Error', 'Failed to update order status', 'error');
-                }
-            } catch (error) {
-                console.error('Error updating order status:', error);
                 showNotification('Error', 'Failed to update order status', 'error');
             }
+        } catch (error) {
+            console.error('❌ Error updating order status:', error);
+            showNotification('Error', 'Failed to update order status: ' + error.message, 'error');
         }
+    }
 
-        // Update order status from table
-        async function updateOrderStatus(orderId, status) {
-            try {
-                const response = await fetch(`${API_BASE_URL}/orders/${orderId}/status`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify({ status })
-                });
+    // Update order status from table
+    async function updateOrderStatus(orderId, status) {
+        try {
+            const response = await safeFetch(`${API_BASE_URL}/orders/${orderId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ status })
+            });
 
-                if (response.ok) {
-                    showNotification('Success', 'Order status updated successfully!');
-                    loadOrders();
-                    loadRecentOrders();
-                    loadDashboardStats();
-                } else {
-                    showNotification('Error', 'Failed to update order status', 'error');
-                }
-            } catch (error) {
-                console.error('Error updating order status:', error);
+            if (response.ok) {
+                showNotification('Success', 'Order status updated successfully!');
+                loadOrders();
+                loadRecentOrders();
+                loadDashboardStats();
+                console.log('📦 Order status updated:', orderId, status);
+            } else {
                 showNotification('Error', 'Failed to update order status', 'error');
             }
+        } catch (error) {
+            console.error('❌ Error updating order status:', error);
+            showNotification('Error', 'Failed to update order status: ' + error.message, 'error');
         }
+    }
 
-        // Initialize the dashboard when page loads
-        document.addEventListener('DOMContentLoaded', initDashboard);
-    </script>
+    // Initialize the dashboard when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🎉 Dashboard page loaded');
+        initDashboard().catch(error => {
+            console.error('💥 Failed to initialize dashboard:', error);
+            showNotification('Initialization Error', 'Failed to load dashboard. Please refresh the page.', 'error');
+        });
+    });
+
+    // جعل الدوال متاحة globally للاستخدام في onclick
+    window.viewOrderDetails = viewOrderDetails;
+    window.updateOrderStatus = updateOrderStatus;
+    window.editProduct = editProduct;
+    window.deleteProduct = deleteProduct;
+    window.removeImage = removeImage;
+    window.changeProductImage = function(imageUrl, element) {
+        document.getElementById('mainProductImage').src = imageUrl;
+        document.querySelectorAll('.product-thumbnail').forEach(thumb => {
+            thumb.classList.remove('active');
+        });
+        element.classList.add('active');
+    };
+    window.changeOrderProductImage = function(imageUrl, element) {
+        document.getElementById('orderMainImage').src = imageUrl;
+        document.querySelectorAll('#orderProductGallery .product-thumbnail').forEach(thumb => {
+            thumb.classList.remove('active');
+        });
+        element.classList.add('active');
+    };
+</script>
 </body>
 </html>
+
