@@ -682,8 +682,19 @@
             color: var(--primary);
         }
 
+        /* Delivery Badge */
+        .delivery-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .delivery-available { background: #d1edff; color: #004085; }
+        .delivery-unavailable { background: #f8d7da; color: #721c24; }
+
         /* Responsive Styles */
-        @media (max-width: 992px) {
+        @media (max-width: 1200px) {
             .sidebar {
                 width: 70px;
             }
@@ -697,21 +708,32 @@
                 justify-content: center;
                 padding: 15px;
             }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
+                width: 250px;
                 z-index: 1000;
             }
             .sidebar.active {
                 transform: translateX(0);
             }
+            .sidebar-header h2, .menu-item span {
+                display: block;
+            }
+            .menu-item {
+                justify-content: flex-start;
+            }
             .main-content {
                 margin-left: 0;
+                padding: 15px;
             }
             .stats-grid {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr;
             }
             .form-row {
                 grid-template-columns: 1fr;
@@ -726,6 +748,13 @@
             }
             .user-info {
                 align-self: flex-end;
+                margin-top: 10px;
+            }
+            .table-responsive {
+                font-size: 0.9rem;
+            }
+            th, td {
+                padding: 8px 10px;
             }
         }
 
@@ -741,6 +770,41 @@
             }
             .modal-content {
                 padding: 20px;
+                margin: 10px;
+            }
+            .header h1 {
+                font-size: 1.3rem;
+            }
+            .section-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            .action-group {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 10px;
+            }
+            .header {
+                padding: 10px 15px;
+            }
+            .section-content {
+                padding: 15px;
+            }
+            .stat-card {
+                padding: 15px;
+            }
+            .stat-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+            .user-details {
+                display: none;
             }
         }
     </style>
@@ -811,7 +875,7 @@
                     <i class="fas fa-user"></i>
                     <span>Profile</span>
                 </div>
-                <a href="/" class="menu-item" target="_blank">
+                <a href="http://my-storewin.great-site.net/" class="menu-item" target="_blank">
                     <i class="fas fa-store"></i>
                     <span>View Store</span>
                 </a>
@@ -926,6 +990,7 @@
                                         <th>Price</th>
                                         <th>Quantity</th>
                                         <th>Category</th>
+                                        <th>Delivery</th>
                                         <th>Status</th>
                                         <th>Actions</th>
                                     </tr>
@@ -955,6 +1020,7 @@
                                         <th>Phone</th>
                                         <th>Items</th>
                                         <th>Total</th>
+                                        <th>Delivery</th>
                                         <th>Status</th>
                                         <th>Date</th>
                                         <th>Actions</th>
@@ -1229,6 +1295,15 @@
                     <input type="text" id="productCategory" class="form-control" placeholder="Electronics, Fashion, etc.">
                 </div>
                 
+                <!-- Delivery Availability -->
+                <div class="form-group">
+                    <label for="productDelivery">Delivery Available</label>
+                    <select id="productDelivery" class="form-control">
+                        <option value="true" selected>Yes</option>
+                        <option value="false">No (Pickup Only)</option>
+                    </select>
+                </div>
+                
                 <!-- قسم رفع الصور -->
                 <div class="form-group">
                     <label>Product Images</label>
@@ -1270,6 +1345,7 @@
                     <p>Name: <span id="orderCustomerName"></span></p>
                     <p>Phone: <span id="orderCustomerPhone"></span></p>
                     <p>Address: <span id="orderCustomerAddress"></span></p>
+                    <p>Delivery Option: <span id="orderDeliveryOption"></span></p>
                 </div>
                 
                 <div class="form-group">
@@ -1312,7 +1388,9 @@
 
     <script>
         // API Configuration
-        const API_BASE_URL = 'https://my-store-p63u.onrender.com/api';
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/api' 
+            : 'https://my-store-p63u.onrender.com/api';
         
         console.log('API Base URL:', API_BASE_URL);
 
@@ -1742,6 +1820,11 @@
                     <td>${product.quantity}</td>
                     <td>${product.category || 'Uncategorized'}</td>
                     <td>
+                        <span class="delivery-badge ${product.deliveryAvailable ? 'delivery-available' : 'delivery-unavailable'}">
+                            ${product.deliveryAvailable ? 'Available' : 'Pickup Only'}
+                        </span>
+                    </td>
+                    <td>
                         <span class="status-badge ${product.status ? 'active' : 'inactive'}">
                             ${product.status ? 'Active' : 'Inactive'}
                         </span>
@@ -1787,6 +1870,7 @@
             orders.forEach(order => {
                 const itemsCount = order.items ? order.items.length : 0;
                 const itemsText = itemsCount === 1 ? '1 item' : `${itemsCount} items`;
+                const deliveryText = order.deliveryOption === 'delivery' ? 'Delivery' : 'Pickup';
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `
@@ -1795,6 +1879,7 @@
                     <td>${order.phone}</td>
                     <td>${itemsText}</td>
                     <td>${order.total} DA</td>
+                    <td>${deliveryText}</td>
                     <td>
                         <select onchange="updateOrderStatus(${order.id}, this.value)" class="form-control">
                             <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
@@ -2293,6 +2378,7 @@
                 document.getElementById('productPrice').value = product.price;
                 document.getElementById('productQuantity').value = product.quantity;
                 document.getElementById('productCategory').value = product.category || '';
+                document.getElementById('productDelivery').value = product.deliveryAvailable ? 'true' : 'false';
                 
                 // تحميل الصور الحالية للمنتج
                 if (product.images && product.images.length > 0) {
@@ -2308,6 +2394,7 @@
                 document.getElementById('productId').value = '';
                 // وضع افتراضي Active
                 document.getElementById('productStatus').value = 'true';
+                document.getElementById('productDelivery').value = 'true';
             }
 
             modal.style.display = 'flex';
@@ -2323,6 +2410,7 @@
                 price: parseFloat(document.getElementById('productPrice').value),
                 quantity: parseInt(document.getElementById('productQuantity').value),
                 category: document.getElementById('productCategory').value,
+                deliveryAvailable: document.getElementById('productDelivery').value === 'true',
                 status: document.getElementById('productStatus').value === 'true',
                 images: uploadedImages // استخدام الصور المرفوعة
             };
@@ -2403,6 +2491,7 @@
             document.getElementById('orderCustomerName').textContent = order.customerName;
             document.getElementById('orderCustomerPhone').textContent = order.phone;
             document.getElementById('orderCustomerAddress').textContent = order.address;
+            document.getElementById('orderDeliveryOption').textContent = order.deliveryOption === 'delivery' ? 'Home Delivery' : 'Store Pickup';
             document.getElementById('orderTotalAmount').textContent = order.total + ' DA';
             document.getElementById('orderNotes').textContent = order.description || 'No special notes provided.';
             document.getElementById('orderStatusSelect').value = order.status;
