@@ -389,6 +389,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
       quantity: parseInt(productData.quantity),
       category: productData.category,
       status: productData.status !== undefined ? productData.status : true,
+      deliveryAvailable: productData.deliveryAvailable !== undefined ? productData.deliveryAvailable : true,
       images: productData.images || [],
       createdAt: new Date().toISOString()
     };
@@ -431,6 +432,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
       quantity: parseInt(productData.quantity),
       category: productData.category,
       status: productData.status !== undefined ? productData.status : true,
+      deliveryAvailable: productData.deliveryAvailable !== undefined ? productData.deliveryAvailable : true,
       images: productData.images || data.products[productIndex].images
     };
 
@@ -503,6 +505,7 @@ app.post('/api/orders', async (req, res) => {
       description: orderData.description,
       address: orderData.address,
       phone: orderData.phone,
+      deliveryOption: orderData.deliveryOption || 'delivery',
       status: 'pending',
       total: orderData.total || orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
       createdAt: new Date().toISOString()
