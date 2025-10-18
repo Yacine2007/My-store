@@ -808,6 +808,307 @@
             }
         }
     </style>
+
+
+<style>
+/* تحسينات الانتقالات للقائمة الجانبية */
+.sidebar {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(0);
+}
+
+.sidebar.active {
+    transform: translateX(0);
+    box-shadow: 5px 0 25px rgba(0, 0, 0, 0.3);
+}
+
+/* طبقة التعتيم الخلفية للقائمة الجانبية */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* تحسينات استجابة إضافية للهواتف */
+@media (max-width: 768px) {
+    /* تحسينات القائمة الجانبية */
+    .sidebar {
+        transform: translateX(-100%);
+        box-shadow: none;
+    }
+    
+    .sidebar.active {
+        transform: translateX(0);
+        box-shadow: 5px 0 25px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* تحسينات الهيدر */
+    .header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        margin-bottom: 15px;
+        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.95);
+    }
+    
+    /* تحسينات البطاقات */
+    .stat-card {
+        padding: 15px;
+        margin-bottom: 10px;
+        border-radius: 16px;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    /* تحسينات الجداول */
+    .table-responsive {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    table {
+        font-size: 0.85rem;
+    }
+    
+    th, td {
+        padding: 10px 8px;
+        white-space: nowrap;
+    }
+    
+    /* تحسينات النماذج */
+    .form-control {
+        font-size: 16px; /* منع التكبير في iOS */
+        padding: 14px 12px;
+    }
+    
+    /* تحسينات الأزرار */
+    .btn {
+        padding: 14px 20px;
+        border-radius: 12px;
+        font-size: 1rem;
+    }
+    
+    .action-btn {
+        padding: 8px 12px;
+        margin: 2px;
+    }
+    
+    /* تحسينات المودال */
+    .modal-content {
+        margin: 10px;
+        padding: 20px;
+        border-radius: 20px;
+        max-height: 85vh;
+    }
+    
+    /* تحسينات التبويبات */
+    .tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 5px;
+    }
+    
+    .tab {
+        flex-shrink: 0;
+        padding: 12px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* تحسينات إضافية للشاشات الصغيرة */
+    .main-content {
+        padding: 10px 8px;
+    }
+    
+    .content-section {
+        border-radius: 16px;
+        margin-bottom: 15px;
+    }
+    
+    .section-content {
+        padding: 15px;
+    }
+    
+    .stats-grid {
+        gap: 12px;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+    
+    .stat-info h3 {
+        font-size: 1.5rem;
+    }
+    
+    /* تحسينات الإشعارات */
+    .notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    /* تحسينات رفع الملفات */
+    .upload-area {
+        padding: 25px 15px;
+    }
+    
+    .upload-area i {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 360px) {
+    /* تحسينات للشاشات الصغيرة جداً */
+    .main-content {
+        padding: 8px 5px;
+    }
+    
+    .header {
+        padding: 12px 15px;
+    }
+    
+    .header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+    
+    .action-group {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* تحسينات اللمس والتفاعل */
+.menu-item, .tab, .btn, .action-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* تحسينات التمرير السلس */
+.main-content, .sidebar, .modal-content {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* تحسينات الأداء */
+.stat-card, .content-section, .header {
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* تحسينات الظلال للهواتف */
+@media (max-width: 768px) {
+    .content-section, .header, .stat-card {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+}
+
+/* تحسينات الشريط السفلي الآمن للهواتف الحديثة */
+@supports(padding: max(0px)) {
+    .main-content {
+        padding-left: max(8px, env(safe-area-inset-left));
+        padding-right: max(8px, env(safe-area-inset-right));
+        padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+}
+
+/* تحسينات التحميل */
+.loading-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* تحسينات الظهور التدريجي */
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* تحسينات إضافية للواجهة الناعمة */
+.menu-item, .tab, .btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-item:active, .tab:active, .btn:active {
+    transform: scale(0.98);
+}
+
+/* تحسينات الصور في الجداول للهواتف */
+@media (max-width: 768px) {
+    .product-image-table {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* تحسينات الحالة النشطة للعناصر */
+.menu-item:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+</style>
+
+    
 </head>
 <body>
     <!-- Custom Notification -->
@@ -3042,7 +3343,253 @@ document.head.appendChild(style);
         element.classList.add('active');
     };
 </script>
+
+
+<script>
+// تحسينات القائمة الجانبية للهواتف
+function setupMobileSidebar() {
+    const sidebarOverlay = document.createElement('div');
+    sidebarOverlay.className = 'sidebar-overlay';
+    sidebarOverlay.id = 'sidebarOverlay';
+    document.body.appendChild(sidebarOverlay);
+    
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebarOverlayElement = document.getElementById('sidebarOverlay');
+    
+    // إغلاق القائمة بالنقر على الخلفية
+    sidebarOverlayElement.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        sidebarOverlayElement.classList.remove('active');
+        document.body.style.overflow = 'auto';
+    });
+    
+    // زر القائمة
+    menuToggle.addEventListener('click', () => {
+        const isActive = sidebar.classList.toggle('active');
+        sidebarOverlayElement.classList.toggle('active');
+        document.body.style.overflow = isActive ? 'hidden' : 'auto';
+    });
+    
+    // إغلاق القائمة عند النقر على عنصر قائمة
+    document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
+                sidebarOverlayElement.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+        });
+    });
+}
+
+// تحسينات أداء اللمس
+function setupTouchOptimizations() {
+    // منع التكبير المزدوج على الأزرار
+    document.addEventListener('touchstart', function() {}, { passive: true });
+    
+    // تحسين استجابة النقر
+    document.addEventListener('touchmove', function(e) {
+        if (e.scale !== 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // تحسينات للأزرار والعناصر القابلة للنقر
+    document.querySelectorAll('.btn, .action-btn, .menu-item, .tab').forEach(element => {
+        element.style.cursor = 'pointer';
+    });
+}
+
+// تحسينات المودال للهواتف
+function setupMobileModals() {
+    const modals = document.querySelectorAll('.modal');
+    
+    modals.forEach(modal => {
+        modal.addEventListener('touchmove', function(e) {
+            e.stopPropagation();
+        }, { passive: false });
+    });
+}
+
+// تحسينات التمرير للجداول
+function setupTableScroll() {
+    const tables = document.querySelectorAll('.table-responsive');
+    
+    tables.forEach(table => {
+        let isScrolling;
+        table.addEventListener('scroll', function() {
+            window.clearTimeout(isScrolling);
+            table.classList.add('scrolling');
+            isScrolling = setTimeout(function() {
+                table.classList.remove('scrolling');
+            }, 150);
+        });
+    });
+}
+
+// تحسينات تحميل الصور
+function setupImageLoading() {
+    const images = document.querySelectorAll('img');
+    
+    images.forEach(img => {
+        // إضافة تأثير تحميل للصور
+        if (!img.complete) {
+            img.style.opacity = '0';
+            img.addEventListener('load', function() {
+                this.style.transition = 'opacity 0.3s ease';
+                this.style.opacity = '1';
+            });
+        }
+    });
+}
+
+// تحسينات الأداء العام
+function setupPerformanceOptimizations() {
+    // تقليل إعادة التصيير
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(function() {
+            // إعادة حساب العناصر عند انتهاء التغيير
+            document.querySelectorAll('.stat-card, .content-section').forEach(el => {
+                el.style.willChange = 'auto';
+            });
+        }, 250);
+    });
+    
+    // تحسين الذاكرة
+    window.addEventListener('beforeunload', function() {
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.style.display = 'none';
+        });
+    });
+}
+
+// تحسينات لوحة المفاتيح للهواتف
+function setupKeyboardHandling() {
+    document.addEventListener('focusin', function(e) {
+        if (window.innerWidth <= 768) {
+            setTimeout(() => {
+                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+    });
+}
+
+// تهيئة جميع التحسينات
+function initMobileOptimizations() {
+    setupMobileSidebar();
+    setupTouchOptimizations();
+    setupMobileModals();
+    setupTableScroll();
+    setupImageLoading();
+    setupPerformanceOptimizations();
+    setupKeyboardHandling();
+    
+    console.log('📱 Mobile optimizations initialized');
+}
+
+// كشف حجم الشاشة وتعديل السلوك
+function handleViewportChanges() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    function checkViewport() {
+        if (window.innerWidth > 768) {
+            if (sidebar) sidebar.classList.remove('active');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    }
+    
+    // التحقق عند تغيير الحجم
+    window.addEventListener('resize', checkViewport);
+    
+    // التحقق عند تغيير الاتجاه
+    window.addEventListener('orientationchange', function() {
+        setTimeout(checkViewport, 300);
+    });
+}
+
+// إضافة CSS ديناميكي للتحسينات
+function addDynamicStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .table-responsive.scrolling {
+            pointer-events: none;
+        }
+        
+        .table-responsive.scrolling * {
+            pointer-events: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .modal-content {
+                transform: translateY(0);
+                transition: transform 0.3s ease;
+            }
+            
+            .modal.show .modal-content {
+                transform: translateY(0);
+            }
+        }
+        
+        /* تحسينات اللمس للإطارات */
+        .stat-card, .content-section {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// تهيئة التحسينات عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    // الانتظار حتى يكتمل تحميل الصفحة
+    setTimeout(() => {
+        initMobileOptimizations();
+        handleViewportChanges();
+        addDynamicStyles();
+    }, 100);
+});
+
+// جعل الدوال متاحة globally إذا لزم الأمر
+window.initMobileOptimizations = initMobileOptimizations;
+window.handleViewportChanges = handleViewportChanges;
+
+// تحسينات إضافية للتفاعلات
+document.addEventListener('DOMContentLoaded', function() {
+    // تحسينات النقر المزدوج
+    let lastTap = 0;
+    document.addEventListener('touchend', function(e) {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        if (tapLength < 500 && tapLength > 0) {
+            e.preventDefault();
+        }
+        lastTap = currentTime;
+    });
+    
+    // تحسينات التمرير السلس
+    document.querySelectorAll('.sidebar, .modal-content').forEach(element => {
+        element.addEventListener('touchstart', function() {
+            this.style.overflowY = 'hidden';
+        });
+        
+        element.addEventListener('touchend', function() {
+            this.style.overflowY = 'auto';
+        });
+    });
+});
+</script>
+    
+
+    
 </body>
 </html>
+
 
 
