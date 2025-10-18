@@ -28,7 +28,7 @@
     <div id="loginPage" class="login-container">
         <div class="login-box">
             <div class="login-logo">
-                <img id="loginLogo" src="" alt="Store Logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjNDM2MWVlIi8+Cjx0ZXh0IHg9IjMwIiB5PSIzNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TE9HTzwvdGV4dD4KPC9zdmc+'">
+                <img id="loginLogo" src="" alt="Store Logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjNDM2MWVlIiByeD0iOCIvPgo8dGV4dCB4PSIzMCIgeT0iMzUiIGZpbGw9IndoaXRlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5MT0dPPC90ZXh0Pgo8L3N2Zz4K'">
                 <h1>My Store</h1>
             </div>
             <h2 class="login-title">Admin Login</h2>
@@ -404,29 +404,39 @@
                         <h2><i class="fas fa-exclamation-triangle"></i> Danger Zone</h2>
                     </div>
                     <div class="section-content">
-                        <div class="danger-zone-content">
-                            <div class="danger-zone-warning">
-                                <div class="warning-icon">
+                        <div class="danger-content">
+                            <div class="danger-warning">
+                                <div class="danger-icon">
                                     <i class="fas fa-radiation"></i>
                                 </div>
-                                <div class="warning-text">
+                                <div>
                                     <h3>Reset Store Data</h3>
-                                    <p>This action will permanently delete all products, orders, analytics data, and reset store settings to default. <strong>This action cannot be undone!</strong></p>
-                                    <div class="warning-alert">
+                                    <p>
+                                        This action will permanently delete all products, orders, analytics data, and reset store settings to default. 
+                                        <strong>This action cannot be undone!</strong>
+                                    </p>
+                                    <div class="warning-message">
                                         <i class="fas fa-exclamation-circle"></i>
                                         <span><strong>Warning:</strong> All your data will be lost including customer orders and product information.</span>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="reset-confirmation">
-                                <div class="form-group">
+                            <div class="danger-actions">
+                                <div>
                                     <label>Type "RESET" to confirm:</label>
-                                    <input type="text" id="resetConfirmInput" placeholder="Type RESET here">
-                                    <small>Must be typed in uppercase letters</small>
+                                    <input 
+                                        type="text" 
+                                        id="resetConfirmInput" 
+                                        placeholder="Type RESET here"
+                                    >
+                                    <div class="danger-note">Must be typed in uppercase letters</div>
                                 </div>
                                 
-                                <button id="resetStoreBtn" disabled>
+                                <button 
+                                    id="resetStoreBtn" 
+                                    disabled
+                                >
                                     <i class="fas fa-bomb"></i>
                                     Reset Store Data
                                 </button>
@@ -470,7 +480,7 @@
                             </button>
                         </form>
 
-                        <div class="content-section password-section">
+                        <div class="content-section" style="margin-top: 20px;">
                             <div class="section-header">
                                 <h2>Change Password</h2>
                             </div>
@@ -627,4 +637,3 @@
     <script src="dashboard.js"></script>
 </body>
 </html>
-
