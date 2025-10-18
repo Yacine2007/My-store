@@ -166,7 +166,7 @@ function updateUserInfo() {
         // Update avatar if available
         const adminAvatar = document.getElementById('adminAvatar');
         if (currentUser.avatar) {
-            adminAvatar.innerHTML = `<img src="${currentUser.avatar}" alt="${currentUser.name}">`;
+            adminAvatar.innerHTML = `<img src="${currentUser.avatar}" alt="${currentUser.name}" style="width: 100%; height: 100%; object-fit: cover;">`;
         } else {
             adminAvatar.innerHTML = '<i class="fas fa-user"></i>';
         }
@@ -422,6 +422,7 @@ async function loadProducts() {
     try {
         products = await apiRequest('/products');
         displayProducts(products);
+        displayProductsMobile(products);
         console.log('📦 Products loaded:', products.length);
     } catch (error) {
         console.error('❌ Error loading products:', error);
@@ -434,6 +435,7 @@ async function loadOrders() {
     try {
         orders = await apiRequest('/orders');
         displayOrders(orders);
+        displayOrdersMobile(orders);
         updateRecentOrders(orders);
         console.log('📋 Orders loaded:', orders.length);
     } catch (error) {
@@ -446,6 +448,7 @@ async function loadOrders() {
 function loadRecentOrders() {
     if (orders.length > 0) {
         updateRecentOrders(orders);
+        updateRecentOrdersMobile(orders);
     }
 }
 
@@ -473,7 +476,7 @@ async function loadProfile() {
     }
 }
 
-// Display Products
+// Display Products - Desktop Table
 function displayProducts(products) {
     const tbody = document.querySelector('#productsTable tbody');
     if (!tbody) return;
@@ -492,11 +495,11 @@ function displayProducts(products) {
     }
     
     products.forEach(product => {
-        const row = document.createElement('tr');
         const imageUrl = product.images && product.images.length > 0 ? 
             product.images[0] : 
             'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K';
         
+        const row = document.createElement('tr');
         row.innerHTML = `
             <td>
                 <img src="${imageUrl}" alt="${product.name}" 
@@ -532,7 +535,93 @@ function displayProducts(products) {
     });
 }
 
-// Display Orders
+// Display Products - Mobile Cards
+function displayProductsMobile(products) {
+    const container = document.getElementById('productsMobile');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (products.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-card" style="text-align: center; color: #6c757d; padding: 20px;">
+                No products found. <a href="#" onclick="showAddProductModal()" style="color: #4361ee;">Add your first product</a>
+            </div>
+        `;
+        return;
+    }
+    
+    products.forEach(product => {
+        const imageUrl = product.images && product.images.length > 0 ? 
+            product.images[0] : 
+            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K';
+        
+        const card = document.createElement('div');
+        card.className = 'mobile-product-card';
+        card.innerHTML = `
+            <div class="mobile-card-header">
+                <div class="mobile-card-title">${product.name}</div>
+                <div class="mobile-card-actions">
+                    <button class="action-btn btn-primary" onclick="editProduct('${product.id}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="action-btn btn-danger" onclick="deleteProduct('${product.id}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Image</div>
+                        <img src="${imageUrl}" alt="${product.name}" 
+                             style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
+                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'">
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Price</div>
+                        <div class="mobile-card-value">${product.price} DA</div>
+                    </div>
+                </div>
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Quantity</div>
+                        <div class="mobile-card-value">${product.quantity}</div>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Category</div>
+                        <div class="mobile-card-value">${product.category || 'Uncategorized'}</div>
+                    </div>
+                </div>
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Delivery</div>
+                        <span class="status-badge ${product.deliveryAvailable ? 'active' : 'inactive'}">
+                            ${product.deliveryAvailable ? 'Available' : 'Pickup Only'}
+                        </span>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Status</div>
+                        <span class="status-badge ${product.status ? 'active' : 'inactive'}">
+                            ${product.status ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="mobile-card-actions compact">
+                <button class="btn btn-primary" onclick="showProductDetailsMobile('${product.id}')" style="flex: 1;">
+                    <i class="fas fa-eye"></i> View Details
+                </button>
+                <button class="btn btn-primary" onclick="editProduct('${product.id}')" style="flex: 1;">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Display Orders - Desktop Table
 function displayOrders(orders) {
     const tbody = document.querySelector('#ordersTable tbody');
     if (!tbody) return;
@@ -587,7 +676,95 @@ function displayOrders(orders) {
     });
 }
 
-// Update Recent Orders (Dashboard)
+// Display Orders - Mobile Cards
+function displayOrdersMobile(orders) {
+    const container = document.getElementById('ordersMobile');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (orders.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-card" style="text-align: center; color: #6c757d; padding: 20px;">
+                No orders yet
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort orders by date (newest first)
+    orders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    orders.forEach(order => {
+        const itemsCount = order.items ? order.items.length : 0;
+        const itemsText = itemsCount === 1 ? '1 item' : `${itemsCount} items`;
+        
+        const card = document.createElement('div');
+        card.className = 'mobile-order-card';
+        card.innerHTML = `
+            <div class="mobile-card-header">
+                <div class="mobile-card-title">Order #${order.id}</div>
+                <div class="mobile-card-actions">
+                    <button class="action-btn btn-primary" onclick="viewOrderDetails('${order.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Customer</div>
+                        <div class="mobile-card-value">${order.customerName}</div>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Phone</div>
+                        <div class="mobile-card-value">${order.phone}</div>
+                    </div>
+                </div>
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Items</div>
+                        <div class="mobile-card-value">${itemsText}</div>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Total</div>
+                        <div class="mobile-card-value">${order.total} DA</div>
+                    </div>
+                </div>
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Delivery</div>
+                        <span class="status-badge ${order.deliveryOption === 'delivery' ? 'active' : 'inactive'}">
+                            ${order.deliveryOption === 'delivery' ? 'Delivery' : 'Pickup'}
+                        </span>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Date</div>
+                        <div class="mobile-card-value">${new Date(order.createdAt).toLocaleDateString()}</div>
+                    </div>
+                </div>
+                <div class="mobile-card-section full">
+                    <div class="mobile-card-field compact">
+                        <div class="mobile-card-label">Status</div>
+                        <select onchange="updateOrderStatus('${order.id}', this.value)" class="form-control" style="min-width: 120px;">
+                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
+                            <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="mobile-card-actions compact">
+                <button class="btn btn-primary" onclick="viewOrderDetails('${order.id}')" style="flex: 1;">
+                    <i class="fas fa-eye"></i> View Details
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Update Recent Orders (Dashboard) - Desktop
 function updateRecentOrders(orders) {
     const tbody = document.querySelector('#recentOrdersTable tbody');
     if (!tbody) return;
@@ -628,6 +805,159 @@ function updateRecentOrders(orders) {
         `;
         tbody.appendChild(row);
     });
+}
+
+// Update Recent Orders - Mobile
+function updateRecentOrdersMobile(orders) {
+    const container = document.getElementById('recentOrdersMobile');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Get recent orders (last 5)
+    const recentOrders = orders.slice(0, 5);
+    
+    if (recentOrders.length === 0) {
+        container.innerHTML = `
+            <div class="mobile-card" style="text-align: center; color: #6c757d; padding: 20px;">
+                No recent orders
+            </div>
+        `;
+        return;
+    }
+    
+    recentOrders.forEach(order => {
+        const card = document.createElement('div');
+        card.className = 'mobile-order-card';
+        card.innerHTML = `
+            <div class="mobile-card-header">
+                <div class="mobile-card-title">Order #${order.id}</div>
+                <div class="mobile-card-actions">
+                    <button class="action-btn btn-primary" onclick="viewOrderDetails('${order.id}')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="mobile-card-body">
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Customer</div>
+                        <div class="mobile-card-value">${order.customerName}</div>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Amount</div>
+                        <div class="mobile-card-value">${order.total} DA</div>
+                    </div>
+                </div>
+                <div class="mobile-card-section">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Status</div>
+                        <span class="status-badge ${order.status}">
+                            ${order.status}
+                        </span>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Date</div>
+                        <div class="mobile-card-value">${new Date(order.createdAt).toLocaleDateString()}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mobile-card-actions compact">
+                <button class="btn btn-primary" onclick="viewOrderDetails('${order.id}')" style="flex: 1;">
+                    <i class="fas fa-eye"></i> View Details
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Show Product Details in Mobile Modal
+async function showProductDetailsMobile(productId) {
+    try {
+        const product = await apiRequest(`/products/${productId}`);
+        
+        const images = product.images && product.images.length > 0 ? product.images : ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'];
+        const mainImage = images[0];
+        
+        let imagesHTML = '';
+        if (images.length > 1) {
+            imagesHTML = `
+                <div class="product-thumbnails">
+                    ${images.map((img, index) => `
+                        <img src="${img}" alt="Thumbnail ${index + 1}" class="product-thumbnail ${index === 0 ? 'active' : ''}" 
+                             onclick="changeProductImageMobile('${img}', this)">
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        const detailsContent = `
+            <div class="product-gallery-mobile">
+                <img src="${mainImage}" alt="${product.name}" class="product-main-image-mobile" id="mainProductImageMobile">
+                ${imagesHTML}
+            </div>
+            <div class="product-info-details-mobile">
+                <h3 style="margin-bottom: 15px; color: var(--dark);">${product.name}</h3>
+                
+                <div class="mobile-card-section" style="margin-bottom: 15px;">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Category</div>
+                        <div class="mobile-card-value">${product.category || 'Uncategorized'}</div>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">In Stock</div>
+                        <div class="mobile-card-value">${product.quantity}</div>
+                    </div>
+                </div>
+                
+                <div class="mobile-card-section" style="margin-bottom: 15px;">
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Delivery</div>
+                        <span class="status-badge ${product.deliveryAvailable ? 'active' : 'inactive'}">
+                            ${product.deliveryAvailable ? 'Available' : 'Pickup Only'}
+                        </span>
+                    </div>
+                    <div class="mobile-card-field">
+                        <div class="mobile-card-label">Status</div>
+                        <span class="status-badge ${product.status ? 'active' : 'inactive'}">
+                            ${product.status ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <div class="mobile-card-label">Description</div>
+                    <p style="color: var(--gray); margin-top: 5px;">${product.description || 'No description available.'}</p>
+                </div>
+                
+                <div style="text-align: center; margin: 20px 0;">
+                    <div class="product-price" style="font-size: 2rem; color: var(--primary); font-weight: bold;">${product.price} DA</div>
+                </div>
+                
+                <div class="mobile-card-actions compact">
+                    <button class="btn btn-primary" onclick="editProduct('${product.id}'); closeModal(document.getElementById('productDetailsModal'));" style="flex: 1;">
+                        <i class="fas fa-edit"></i> Edit Product
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('productDetailsMobile').innerHTML = detailsContent;
+        showModal(document.getElementById('productDetailsModal'));
+    } catch (error) {
+        console.error('❌ Error loading product details:', error);
+        showNotification('Error', 'Failed to load product details', 'error');
+    }
+}
+
+// Change product image in mobile modal
+function changeProductImageMobile(imageUrl, element) {
+    document.getElementById('mainProductImageMobile').src = imageUrl;
+    document.querySelectorAll('#productDetailsModal .product-thumbnail').forEach(thumb => {
+        thumb.classList.remove('active');
+    });
+    element.classList.add('active');
 }
 
 // Populate Settings Form
@@ -1059,6 +1389,12 @@ async function handleAvatarUpload(file) {
             
             // Update hidden field
             document.getElementById('adminAvatar').value = result.imageUrl;
+            
+            // Update admin avatar
+            const adminAvatar = document.getElementById('adminAvatar');
+            if (adminAvatar) {
+                adminAvatar.innerHTML = `<img src="${result.imageUrl}" alt="${currentUser?.name || 'Admin'}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            }
             
             showNotification('Success', 'Profile picture uploaded successfully!', 'success');
         } else {
@@ -1651,5 +1987,8 @@ window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.showAddProductModal = showAddProductModal;
 window.toggleSidebar = toggleSidebar;
+window.showProductDetailsMobile = showProductDetailsMobile;
+window.changeProductImageMobile = changeProductImageMobile;
+window.closeModal = closeModal;
 
 console.log('✅ Dashboard JavaScript loaded successfully');
