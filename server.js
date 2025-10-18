@@ -10,33 +10,63 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// تحسينات الأداء
+// Middleware
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static('public', {
-  maxAge: '1d',
-  etag: false
-}));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.static('public'));
 
-// تحسين multer للسرعة
-const storage = multer.memoryStorage(); // استخدام الذاكرة بدلاً من القرص
+// إصلاح كامل لنظام رفع الملفات
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    
+    // التأكد من وجود المجلد
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // تنظيف اسم الملف وإضافة طابع زمني
+    const originalName = file.originalname;
+    const fileExtension = path.extname(originalName);
+    const baseName = path.basename(originalName, fileExtension);
+    
+    // إزالة المسافات والأحرف الخاصة
+    const cleanName = baseName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    
+    const finalName = `${cleanName}-${timestamp}-${random}${fileExtension}`;
+    cb(null, finalName);
+  }
+});
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB للسرعة
+    fileSize: 10 * 1024 * 1024 // 10MB
   },
-  fileFilter: function (req, file, cb) {
-    if (file.mimetype.startsWith('image/')) {
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml'
+    ];
+    
+    if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'), false);
+      cb(new Error(`File type not allowed: ${file.mimetype}. Only images are allowed.`), false);
     }
   }
 });
@@ -44,35 +74,20 @@ const upload = multer({
 // Data file path
 const DATA_FILE = path.join(__dirname, 'data.json');
 
-// كاش للبيانات لتحسين السرعة
-let dataCache = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 5000; // 5 ثواني
+// إنشاء المجلدات المطلوبة
+const ensureDirectories = async () => {
+  const directories = [
+    path.join(__dirname, 'public', 'uploads'),
+    path.dirname(DATA_FILE)
+  ];
 
-const readDataWithCache = async () => {
-  const now = Date.now();
-  if (dataCache && (now - cacheTimestamp) < CACHE_DURATION) {
-    return dataCache;
-  }
-  
-  dataCache = await readData();
-  cacheTimestamp = now;
-  return dataCache;
-};
-
-const clearCache = () => {
-  dataCache = null;
-  cacheTimestamp = 0;
-};
-
-// إنشاء مجلد التحميلات
-const ensureUploadsDir = async () => {
-  const uploadsDir = path.join(__dirname, 'public', 'uploads');
-  try {
-    await fs.access(uploadsDir);
-  } catch (error) {
-    await fs.mkdir(uploadsDir, { recursive: true });
-    console.log('📁 Created uploads directory');
+  for (const dir of directories) {
+    try {
+      await fs.access(dir);
+    } catch (error) {
+      await fs.mkdir(dir, { recursive: true });
+      console.log(`📁 Created directory: ${dir}`);
+    }
   }
 };
 
@@ -80,13 +95,14 @@ const ensureUploadsDir = async () => {
 const initializeDataFile = async () => {
   try {
     await fs.access(DATA_FILE);
-    console.log('✅ Data file exists');
-    
     const data = await readData();
+    
     if (!data || !data.user || !data.settings) {
       throw new Error('Invalid data structure');
     }
-    console.log('✅ Data structure is valid');
+    
+    console.log('✅ Data file is valid');
+    return data;
   } catch (error) {
     console.log('🔄 Creating initial data file...');
     
@@ -138,8 +154,10 @@ const initializeDataFile = async () => {
         revenue: 0
       }
     };
+    
     await fs.writeFile(DATA_FILE, JSON.stringify(initialData, null, 2));
     console.log('✅ Initial data file created successfully');
+    return initialData;
   }
 };
 
@@ -149,7 +167,7 @@ const readData = async () => {
     const data = await fs.readFile(DATA_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
-    console.error('❌ Error reading data:', error);
+    console.error('❌ Error reading data file:', error.message);
     return null;
   }
 };
@@ -158,30 +176,33 @@ const readData = async () => {
 const writeData = async (data) => {
   try {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-    clearCache(); // مسح الكاش بعد أي تحديث
     return true;
   } catch (error) {
-    console.error('❌ Error writing data:', error);
+    console.error('❌ Error writing data file:', error.message);
     return false;
   }
 };
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
+    if (!token) {
+      return res.status(401).json({ error: 'Access token required' });
     }
-    req.user = user;
-    next();
-  });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        return res.status(403).json({ error: 'Invalid or expired token' });
+      }
+      req.user = user;
+      next();
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Authentication error' });
+  }
 };
 
 // Routes
@@ -191,7 +212,6 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
     message: 'Server is running correctly'
   });
 });
@@ -209,49 +229,79 @@ app.get('/', (req, res) => {
 // Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
-// رفع الصور - نظام محسن
+// رفع الصور - نظام محسن تماماً
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
+    console.log('📤 Upload request received');
+    
     if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'No image file provided' 
+      });
     }
 
-    // حفظ الصورة على القرص
-    const fileName = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${path.extname(req.file.originalname)}`;
-    const filePath = path.join(__dirname, 'public', 'uploads', fileName);
-    
-    await fs.writeFile(filePath, req.file.buffer);
-    
-    const imageUrl = `/uploads/${fileName}`;
+    console.log('📄 File details:', {
+      originalname: req.file.originalname,
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
+
+    const imageUrl = `/uploads/${req.file.filename}`;
     
     console.log('✅ Image uploaded successfully:', imageUrl);
     
     res.json({ 
       success: true, 
       imageUrl: imageUrl,
-      message: 'Image uploaded successfully'
+      message: 'Image uploaded successfully',
+      fileInfo: {
+        name: req.file.filename,
+        size: req.file.size,
+        type: req.file.mimetype
+      }
     });
+    
   } catch (error) {
-    console.error('❌ Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image' });
+    console.error('❌ Upload error:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to upload image: ' + error.message 
+    });
   }
+});
+
+// معالجة أخطاء multer
+app.use('/api/upload', (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: 'File too large. Maximum size is 10MB.'
+      });
+    }
+  }
+  
+  res.status(500).json({
+    success: false,
+    error: error.message
+  });
 });
 
 // رفع الصور بدون مصادقة
 app.post('/api/upload-public', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'No image file provided' 
+      });
     }
 
-    const fileName = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${path.extname(req.file.originalname)}`;
-    const filePath = path.join(__dirname, 'public', 'uploads', fileName);
+    const imageUrl = `/uploads/${req.file.filename}`;
     
-    await fs.writeFile(filePath, req.file.buffer);
-    
-    const imageUrl = `/uploads/${fileName}`;
-    
-    console.log('✅ Public image uploaded successfully:', imageUrl);
+    console.log('✅ Public image uploaded:', imageUrl);
     
     res.json({ 
       success: true, 
@@ -259,60 +309,75 @@ app.post('/api/upload-public', upload.single('image'), async (req, res) => {
       message: 'Image uploaded successfully'
     });
   } catch (error) {
-    console.error('❌ Public upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image' });
+    console.error('❌ Public upload error:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to upload image: ' + error.message 
+    });
   }
 });
 
 // Debug endpoint
 app.get('/api/debug', async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
     const uploadsDir = path.join(__dirname, 'public', 'uploads');
     
-    let uploadsExist = false;
+    let uploadsInfo = { exists: false, files: [] };
     try {
-      await fs.access(uploadsDir);
-      uploadsExist = true;
+      const files = await fs.readdir(uploadsDir);
+      uploadsInfo = {
+        exists: true,
+        files: files.slice(0, 10) // أول 10 ملفات فقط
+      };
     } catch (error) {
-      uploadsExist = false;
+      uploadsInfo.exists = false;
     }
     
     if (data) {
       res.json({
+        success: true,
         hasData: true,
         userExists: !!data.user,
         settings: data.settings,
         productsCount: data.products ? data.products.length : 0,
         ordersCount: data.orders ? data.orders.length : 0,
-        uploadsDirExists: uploadsExist,
-        filePath: DATA_FILE,
-        cache: {
-          enabled: true,
-          timestamp: cacheTimestamp
-        }
+        uploads: uploadsInfo,
+        filePath: DATA_FILE
       });
     } else {
-      res.json({ hasData: false });
+      res.json({ 
+        success: false,
+        hasData: false 
+      });
     }
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 });
 
-// Login endpoint - محسن
+// Login endpoint
 app.post('/api/login', async (req, res) => {
-  const { password } = req.body;
-  
-  if (!password) {
-    return res.status(400).json({ error: 'Password is required' });
-  }
-
   try {
-    const data = await readDataWithCache();
+    const { password } = req.body;
+    
+    if (!password) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Password is required' 
+      });
+    }
+
+    const data = await readData();
 
     if (!data || !data.user) {
-      return res.status(500).json({ error: 'Server configuration error' });
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server configuration error' 
+      });
     }
 
     const isValid = await bcrypt.compare(password, data.user.password);
@@ -333,38 +398,55 @@ app.post('/api/login', async (req, res) => {
         }
       });
     } else {
-      // تأخير بسيط للأمان
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      res.status(401).json({ error: 'Invalid password' });
+      await new Promise(resolve => setTimeout(resolve, 1000)); // تأخير أمني
+      res.status(401).json({ 
+        success: false,
+        error: 'Invalid password' 
+      });
     }
   } catch (error) {
-    console.error('❌ Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    console.error('❌ Login error:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error during login' 
+    });
   }
 });
 
-// Change password - محسن
+// Change password
 app.put('/api/user/password', authenticateToken, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-  
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'All password fields are required' });
-  }
-
   try {
-    const data = await readDataWithCache();
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'All password fields are required' 
+      });
+    }
+
+    const data = await readData();
 
     if (!data) {
-      return res.status(500).json({ error: 'Server error' });
+      return res.status(500).json({ 
+        success: false,
+        error: 'Server error' 
+      });
     }
 
     const isValid = await bcrypt.compare(currentPassword, data.user.password);
     if (!isValid) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+      return res.status(401).json({ 
+        success: false,
+        error: 'Current password is incorrect' 
+      });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'New password must be at least 6 characters' 
+      });
     }
 
     data.user.password = await bcrypt.hash(newPassword, 10);
@@ -373,33 +455,36 @@ app.put('/api/user/password', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      // إلغاء جميع التوكنات القديمة
-      clearCache();
       res.json({ 
         success: true, 
-        message: 'Password updated successfully',
-        timestamp: data.user.lastPasswordChange
+        message: 'Password updated successfully'
       });
     } else {
-      res.status(500).json({ error: 'Failed to update password' });
+      res.status(500).json({ 
+        success: false,
+        error: 'Failed to update password' 
+      });
     }
   } catch (error) {
-    console.error('❌ Password change error:', error);
-    res.status(500).json({ error: 'Server error during password change' });
+    console.error('❌ Password change error:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Server error during password change' 
+    });
   }
 });
 
 // Get settings
 app.get('/api/settings', async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
     if (data && data.settings) {
       res.json(data.settings);
     } else {
       res.status(500).json({ error: 'Failed to load settings' });
     }
   } catch (error) {
-    console.error('❌ Settings error:', error);
+    console.error('❌ Settings error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -408,7 +493,7 @@ app.get('/api/settings', async (req, res) => {
 app.put('/api/settings', authenticateToken, async (req, res) => {
   try {
     const settings = req.body;
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error - no data found' });
@@ -431,7 +516,7 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update settings' });
     }
   } catch (error) {
-    console.error('❌ Update settings error:', error);
+    console.error('❌ Update settings error:', error.message);
     res.status(500).json({ error: 'Server error during settings update' });
   }
 });
@@ -440,7 +525,7 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
 app.put('/api/user/profile', authenticateToken, async (req, res) => {
   try {
     const { name, avatar } = req.body;
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error - no data found' });
@@ -469,7 +554,7 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update profile' });
     }
   } catch (error) {
-    console.error('❌ Update profile error:', error);
+    console.error('❌ Update profile error:', error.message);
     res.status(500).json({ error: 'Server error during profile update' });
   }
 });
@@ -477,19 +562,18 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
 // Get user profile
 app.get('/api/user/profile', authenticateToken, async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
     if (data && data.user) {
       res.json({
         name: data.user.name,
         role: data.user.role,
-        avatar: data.user.avatar,
-        lastPasswordChange: data.user.lastPasswordChange
+        avatar: data.user.avatar
       });
     } else {
       res.status(500).json({ error: 'Failed to load profile' });
     }
   } catch (error) {
-    console.error('❌ Profile error:', error);
+    console.error('❌ Profile error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -497,14 +581,14 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
 // Get products
 app.get('/api/products', async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
     if (data && data.products) {
       res.json(data.products);
     } else {
       res.status(500).json({ error: 'Failed to load products' });
     }
   } catch (error) {
-    console.error('❌ Products error:', error);
+    console.error('❌ Products error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -513,7 +597,7 @@ app.get('/api/products', async (req, res) => {
 app.get('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data || !data.products) {
       return res.status(500).json({ error: 'Server error' });
@@ -526,7 +610,7 @@ app.get('/api/products/:id', authenticateToken, async (req, res) => {
 
     res.json(product);
   } catch (error) {
-    console.error('❌ Get product error:', error);
+    console.error('❌ Get product error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -535,7 +619,7 @@ app.get('/api/products/:id', authenticateToken, async (req, res) => {
 app.post('/api/products', authenticateToken, async (req, res) => {
   try {
     const productData = req.body;
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -568,7 +652,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to add product' });
     }
   } catch (error) {
-    console.error('❌ Add product error:', error);
+    console.error('❌ Add product error:', error.message);
     res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
@@ -578,7 +662,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
     const productData = req.body;
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -610,7 +694,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update product' });
     }
   } catch (error) {
-    console.error('❌ Update product error:', error);
+    console.error('❌ Update product error:', error.message);
     res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
@@ -619,7 +703,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
 app.delete('/api/products/:id', authenticateToken, async (req, res) => {
   try {
     const productId = parseInt(req.params.id);
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -639,7 +723,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to delete product' });
     }
   } catch (error) {
-    console.error('❌ Delete product error:', error);
+    console.error('❌ Delete product error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -647,14 +731,14 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
 // Get orders
 app.get('/api/orders', authenticateToken, async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
     if (data && data.orders) {
       res.json(data.orders);
     } else {
       res.status(500).json({ error: 'Failed to load orders' });
     }
   } catch (error) {
-    console.error('❌ Orders error:', error);
+    console.error('❌ Orders error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -663,7 +747,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
 app.get('/api/orders/:id', authenticateToken, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data || !data.orders) {
       return res.status(500).json({ error: 'Server error' });
@@ -676,7 +760,7 @@ app.get('/api/orders/:id', authenticateToken, async (req, res) => {
 
     res.json(order);
   } catch (error) {
-    console.error('❌ Get order error:', error);
+    console.error('❌ Get order error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -685,7 +769,7 @@ app.get('/api/orders/:id', authenticateToken, async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     const orderData = req.body;
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -725,7 +809,7 @@ app.post('/api/orders', async (req, res) => {
       res.status(500).json({ error: 'Failed to create order' });
     }
   } catch (error) {
-    console.error('❌ Create order error:', error);
+    console.error('❌ Create order error:', error.message);
     res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
@@ -735,7 +819,7 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
   try {
     const orderId = parseInt(req.params.id);
     const { status } = req.body;
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (!data) {
       return res.status(500).json({ error: 'Server error' });
@@ -771,7 +855,7 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update order status' });
     }
   } catch (error) {
-    console.error('❌ Update order status error:', error);
+    console.error('❌ Update order status error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -779,7 +863,7 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
 // Track visitor
 app.post('/api/analytics/visitor', async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
 
     if (data) {
       if (!data.analytics) {
@@ -792,7 +876,7 @@ app.post('/api/analytics/visitor', async (req, res) => {
       res.status(500).json({ error: 'Server error' });
     }
   } catch (error) {
-    console.error('❌ Visitor tracking error:', error);
+    console.error('❌ Visitor tracking error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -800,14 +884,14 @@ app.post('/api/analytics/visitor', async (req, res) => {
 // Get analytics
 app.get('/api/analytics', authenticateToken, async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
     if (data && data.analytics) {
       res.json(data.analytics);
     } else {
       res.status(500).json({ error: 'Failed to load analytics' });
     }
   } catch (error) {
-    console.error('❌ Analytics error:', error);
+    console.error('❌ Analytics error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -815,7 +899,7 @@ app.get('/api/analytics', authenticateToken, async (req, res) => {
 // Get dashboard stats
 app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   try {
-    const data = await readDataWithCache();
+    const data = await readData();
     if (data) {
       const completedOrders = data.orders ? data.orders.filter(order => order.status === 'completed') : [];
       const stats = {
@@ -829,7 +913,7 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to load dashboard stats' });
     }
   } catch (error) {
-    console.error('❌ Dashboard stats error:', error);
+    console.error('❌ Dashboard stats error:', error.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -839,7 +923,7 @@ app.post('/api/reset-data', authenticateToken, async (req, res) => {
   try {
     console.log('🔄 Starting data reset...');
     
-    const currentData = await readDataWithCache();
+    const currentData = await readData();
     const productsCount = currentData?.products?.length || 0;
     const ordersCount = currentData?.orders?.length || 0;
     
@@ -893,7 +977,6 @@ app.post('/api/reset-data', authenticateToken, async (req, res) => {
     };
 
     await fs.writeFile(DATA_FILE, JSON.stringify(resetData, null, 2));
-    clearCache();
     
     console.log('✅ Data reset completed');
     
@@ -909,26 +992,32 @@ app.post('/api/reset-data', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Reset data error:', error);
+    console.error('❌ Reset data error:', error.message);
     res.status(500).json({ error: 'Failed to reset store data' });
   }
 });
 
-// Error handling middleware
+// Global error handler
 app.use((error, req, res, next) => {
-  console.error('❌ Unhandled error:', error);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error('❌ Global error handler:', error.message);
+  res.status(500).json({ 
+    success: false,
+    error: 'Internal server error: ' + error.message 
+  });
 });
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
+  res.status(404).json({ 
+    success: false,
+    error: 'Endpoint not found' 
+  });
 });
 
 // Initialize and start server
 const startServer = async () => {
   try {
-    await ensureUploadsDir();
+    await ensureDirectories();
     await initializeDataFile();
     
     app.listen(PORT, '0.0.0.0', () => {
@@ -936,12 +1025,12 @@ const startServer = async () => {
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
-      console.log(`📁 Uploads: http://localhost:${PORT}/uploads`);
-      console.log(`⚡ Performance: CACHE ENABLED`);
+      console.log(`📁 Uploads directory: ${path.join(__dirname, 'public', 'uploads')}`);
       console.log(`📊 Data file: ${DATA_FILE}`);
+      console.log(`✅ Server is ready and optimized for file uploads`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('❌ Failed to start server:', error.message);
     process.exit(1);
   }
 };
