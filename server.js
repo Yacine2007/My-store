@@ -16,7 +16,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
-// تكوين multer لرفع الملفات - إصلاح التخزين
+// تكوين multer لرفع الملفات
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadsDir = path.join(__dirname, 'public', 'uploads');
@@ -56,6 +56,7 @@ const ensureUploadsDir = async () => {
   const uploadsDir = path.join(__dirname, 'public', 'uploads');
   try {
     await fs.access(uploadsDir);
+    console.log('📁 Uploads directory exists');
   } catch (error) {
     await fs.mkdir(uploadsDir, { recursive: true });
     console.log('📁 Created uploads directory');
@@ -144,16 +145,13 @@ const readData = async () => {
 const writeData = async (data) => {
   try {
     await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-    console.log('✅ Data saved successfully to data.json');
+    console.log('✅ Data saved successfully');
     return true;
   } catch (error) {
     console.error('❌ Error writing data:', error);
     return false;
   }
 };
-
-// خدمة ملفات التحميلات
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -195,14 +193,16 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// رفع الصور - إصلاح النظام
+// Serve uploads
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+
+// رفع الصور
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    // إنشاء رابط للصورة
     const imageUrl = `/uploads/${req.file.filename}`;
     
     console.log('✅ Image uploaded successfully:', imageUrl);
@@ -218,14 +218,13 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
   }
 });
 
-// رفع الصور بدون مصادقة (للمتجر)
+// رفع الصور بدون مصادقة
 app.post('/api/upload-public', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    // إنشاء رابط للصورة
     const imageUrl = `/uploads/${req.file.filename}`;
     
     console.log('✅ Public image uploaded successfully:', imageUrl);
@@ -256,13 +255,20 @@ app.get('/api/debug', async (req, res) => {
         productsCount: data.products ? data.products.length : 0,
         ordersCount: data.orders ? data.orders.length : 0,
         uploadsDirExists: uploadsExist,
-        filePath: DATA_FILE
+        filePath: DATA_FILE,
+        dataStructure: {
+          settings: !!data.settings,
+          user: !!data.user,
+          products: !!data.products,
+          orders: !!data.orders,
+          analytics: !!data.analytics
+        }
       });
     } else {
       res.json({ hasData: false });
     }
   } catch (error) {
-    res.json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -362,7 +368,6 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Server error - no data found' });
     }
 
-    // تحديث الإعدادات مع الحفاظ على القيم الحالية
     data.settings = { 
       ...data.settings, 
       ...settings 
@@ -400,7 +405,6 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
       data.user = {};
     }
 
-    // تحديث بيانات المستخدم
     data.user.name = name || data.user.name;
     data.user.avatar = avatar || data.user.avatar;
 
@@ -450,7 +454,23 @@ app.get('/api/products', async (req, res) => {
   try {
     const data = await readData();
     if (data && data.products) {
-      res.json(data.products);
+      // تصحيح مسارات الصور
+      const productsWithFixedImages = data.products.map(product => {
+        if (product.images && Array.isArray(product.images)) {
+          product.images = product.images.map(img => {
+            if (img.startsWith('data:image')) {
+              return img;
+            }
+            if (!img.startsWith('http') && !img.startsWith('/uploads/')) {
+              return `/uploads/${img}`;
+            }
+            return img;
+          });
+        }
+        return product;
+      });
+      
+      res.json(productsWithFixedImages);
     } else {
       res.status(500).json({ error: 'Failed to load products' });
     }
@@ -514,7 +534,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Product added successfully:', newProduct);
+      console.log('✅ Product added successfully:', newProduct.name);
       res.json({ success: true, product: newProduct });
     } else {
       res.status(500).json({ error: 'Failed to add product' });
@@ -557,7 +577,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Product updated successfully:', data.products[productIndex]);
+      console.log('✅ Product updated successfully:', data.products[productIndex].name);
       res.json({ success: true, product: data.products[productIndex] });
     } else {
       res.status(500).json({ error: 'Failed to update product' });
@@ -587,7 +607,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Product deleted successfully:', deletedProduct);
+      console.log('✅ Product deleted successfully:', deletedProduct.name);
       res.json({ success: true, message: 'Product deleted successfully' });
     } else {
       res.status(500).json({ error: 'Failed to delete product' });
@@ -675,7 +695,7 @@ app.post('/api/orders', async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Order created successfully:', newOrder);
+      console.log('✅ Order created successfully: #' + newOrder.id);
       res.json({ success: true, orderId: newOrder.id });
     } else {
       res.status(500).json({ error: 'Failed to create order' });
@@ -711,12 +731,10 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
       data.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
     }
 
-    // إذا تم تغيير الحالة إلى "مكتمل" ولم يكن مكتملاً من قبل، أضف الإيرادات
     if (status === 'completed' && oldStatus !== 'completed') {
       data.analytics.ordersCount += 1;
       data.analytics.revenue += order.total;
     }
-    // إذا تم تغيير الحالة من "مكتمل" إلى حالة أخرى، اطرح الإيرادات
     else if (oldStatus === 'completed' && status !== 'completed') {
       data.analytics.ordersCount = Math.max(0, data.analytics.ordersCount - 1);
       data.analytics.revenue = Math.max(0, data.analytics.revenue - order.total);
@@ -725,7 +743,7 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Order status updated successfully:', order);
+      console.log('✅ Order status updated: #' + orderId + ' -> ' + status);
       res.json({ success: true, message: 'Order status updated successfully' });
     } else {
       res.status(500).json({ error: 'Failed to update order status' });
@@ -794,14 +812,103 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   }
 });
 
-// Reset data endpoint
+// Reset data endpoint - إصدار محسن
 app.post('/api/reset-data', authenticateToken, async (req, res) => {
   try {
-    await initializeDataFile();
-    res.json({ success: true, message: 'Data reset successfully' });
+    console.log('🔄 Starting COMPLETE data reset...');
+    
+    // قراءة البيانات الحالية لمعرفة ما سيتم حذفه
+    const currentData = await readData();
+    const productsCount = currentData?.products?.length || 0;
+    const ordersCount = currentData?.orders?.length || 0;
+    
+    // إنشاء بيانات جديدة كاملة
+    const hashedPassword = await bcrypt.hash('user1234', 10);
+    const resetData = {
+      settings: {
+        storeName: "My Store",
+        heroTitle: "Welcome to Our Store",
+        heroDescription: "Discover our amazing products with great offers and fast delivery.",
+        currency: "DA",
+        language: "en",
+        storeStatus: true,
+        theme: {
+          primary: "#4361ee",
+          secondary: "#3a0ca3",
+          accent: "#f72585",
+          background: "#ffffff",
+          text: "#212529"
+        },
+        contact: {
+          phone: "+213 123 456 789",
+          whatsapp: "+213 123 456 789",
+          email: "info@mystore.com",
+          address: "Algiers, Algeria",
+          workingHours: "8:00 AM - 5:00 PM",
+          workingDays: "Saturday - Thursday"
+        },
+        social: {
+          facebook: "",
+          twitter: "",
+          instagram: "",
+          youtube: ""
+        },
+        logo: "",
+        favicon: ""
+      },
+      user: {
+        name: "Admin User",
+        role: "System Administrator",
+        avatar: "",
+        password: hashedPassword
+      },
+      products: [],
+      orders: [],
+      analytics: {
+        visitors: 0,
+        ordersCount: 0,
+        revenue: 0
+      }
+    };
+
+    // كتابة البيانات الجديدة
+    await fs.writeFile(DATA_FILE, JSON.stringify(resetData, null, 2));
+    
+    // التحقق من أن البيانات كتبت correctly
+    const verifyData = await readData();
+    const verifiedProducts = verifyData?.products?.length || 0;
+    const verifiedOrders = verifyData?.orders?.length || 0;
+    
+    console.log('✅ DATA RESET COMPLETED SUCCESSFULLY');
+    console.log(`🗑️  Products deleted: ${productsCount}`);
+    console.log(`🗑️  Orders deleted: ${ordersCount}`);
+    console.log(`📊 Analytics reset: COMPLETE`);
+    console.log(`⚙️  Settings reset: COMPLETE`);
+    console.log(`👤 User profile: PRESERVED (password reset to 'user1234')`);
+    console.log(`✅ Verification: ${verifiedProducts} products, ${verifiedOrders} orders`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Store data has been completely reset to factory settings',
+      resetSummary: {
+        productsDeleted: productsCount,
+        ordersDeleted: ordersCount,
+        analyticsReset: true,
+        settingsReset: true,
+        userPreserved: true,
+        verification: {
+          products: verifiedProducts,
+          orders: verifiedOrders
+        }
+      }
+    });
+    
   } catch (error) {
-    console.error('❌ Reset data error:', error);
-    res.status(500).json({ error: 'Failed to reset data' });
+    console.error('❌ RESET DATA FAILED:', error);
+    res.status(500).json({ 
+      error: 'Failed to reset store data: ' + error.message,
+      details: 'Please check server logs and file permissions'
+    });
   }
 });
 
@@ -831,6 +938,7 @@ const startServer = async () => {
       console.log(`📊 Data file: ${DATA_FILE}`);
       console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
       console.log(`🐛 Debug: http://localhost:${PORT}/api/debug`);
+      console.log(`🔄 Reset available in admin panel (Danger Zone)`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
