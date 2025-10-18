@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - My Store</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Custom Notification -->
+    <div class="notification" id="notification">
+        <div class="notification-content">
+            <div class="notification-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <div class="notification-message">
+                <strong id="notificationTitle">Success</strong>
+                <p id="notificationMessage">Operation completed successfully</p>
+            </div>
+            <button class="notification-close" id="notificationClose">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="loginPage" class="login-container">
+        <div class="login-box">
+            <div class="login-logo">
+                <img id="loginLogo" src="" alt="Store Logo" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjNDM2MWVlIi8+Cjx0ZXh0IHg9IjMwIiB5PSIzNSIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TE9HTzwvdGV4dD4KPC9zdmc+'">
+                <h1>My Store</h1>
+            </div>
+            <h2 class="login-title">Admin Login</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="container" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>My Store</h2>
+                <p>Admin Dashboard</p>
+            </div>
+            <div class="sidebar-menu">
+                <div class="menu-item active" data-tab="dashboard-tab">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="menu-item" data-tab="products-tab">
+                    <i class="fas fa-box"></i>
+                    <span>Products</span>
+                </div>
+                <div class="menu-item" data-tab="orders-tab">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Orders</span>
+                </div>
+                <div class="menu-item" data-tab="settings-tab">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
+                <div class="menu-item" data-tab="profile-tab">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </div>
+                <a href="http://my-storewin.great-site.net/" class="menu-item" target="_blank">
+                    <i class="fas fa-store"></i>
+                    <span>View Store</span>
+                </a>
+                <div class="menu-item" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h1>Dashboard</h1>
+                <div class="user-info">
+                    <div class="user-details">
+                        <div class="user-name" id="adminName">Admin User</div>
+                        <div class="user-role">System Administrator</div>
+                    </div>
+                    <div class="user-avatar" id="adminAvatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Tab -->
+            <div id="dashboard-tab" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon orders">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="ordersCount">0</h3>
+                            <p>Completed Orders</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon products">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="productsCount">0</h3>
+                            <p>Total Products</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon visitors">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="visitorsCount">0</h3>
+                            <p>Visitors</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon revenue">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="revenueAmount">0 DA</h3>
+                            <p>Total Revenue</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Recent Orders</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="table-responsive">
+                            <table id="recentOrdersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Customer</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Orders will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Tab -->
+            <div id="products-tab" class="tab-content">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Products Management</h2>
+                        <button class="btn btn-primary" id="addProductBtn">
+                            <i class="fas fa-plus"></i> Add Product
+                        </button>
+                    </div>
+                    <div class="section-content">
+                        <div class="table-responsive">
+                            <table id="productsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>Price</th>
+                                        <th>Quantity</th>
+                                        <th>Category</th>
+                                        <th>Delivery</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Products will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Tab -->
+            <div id="orders-tab" class="tab-content">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Orders Management</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="table-responsive">
+                            <table id="ordersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Customer</th>
+                                        <th>Phone</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Delivery</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Orders will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-content">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Store Settings</h2>
+                    </div>
+                    <div class="section-content">
+                        <form id="settingsForm">
+                            <div class="tabs">
+                                <div class="tab active" data-tab="general">General</div>
+                                <div class="tab" data-tab="theme">Theme</div>
+                                <div class="tab" data-tab="contact">Contact</div>
+                                <div class="tab" data-tab="social">Social Media</div>
+                            </div>
+
+                            <!-- General Settings -->
+                            <div id="general" class="tab-content active">
+                                <div class="form-group">
+                                    <label for="storeName">Store Name</label>
+                                    <input type="text" id="storeName" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="heroTitle">Hero Title</label>
+                                    <input type="text" id="heroTitle" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="heroDescription">Hero Description</label>
+                                    <textarea id="heroDescription" class="form-control"></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="currency">Currency</label>
+                                        <select id="currency" class="form-control">
+                                            <option value="DA">DA</option>
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="language">Language</label>
+                                        <select id="language" class="form-control">
+                                            <option value="en">English</option>
+                                            <option value="ar">Arabic</option>
+                                            <option value="fr">French</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="storeLogo">Store Logo</label>
+                                    <div class="upload-area" id="logoUploadArea">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                        <p>Click to upload store logo</p>
+                                        <small>Recommended: 200x60px PNG or JPG</small>
+                                        <input type="file" id="logoFileInput" accept="image/*" style="display: none;">
+                                    </div>
+                                    <input type="hidden" id="storeLogo">
+                                    <div class="image-preview-container">
+                                        <img id="logoPreview" class="image-preview" style="display: none;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="storeStatus">Store Status</label>
+                                    <select id="storeStatus" class="form-control">
+                                        <option value="true">Active</option>
+                                        <option value="false">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Theme Settings -->
+                            <div id="theme" class="tab-content">
+                                <div class="form-group">
+                                    <label>Primary Color</label>
+                                    <div class="color-picker">
+                                        <input type="color" id="primaryColor" class="color-input">
+                                        <input type="text" id="primaryColorText" class="form-control" placeholder="#4361ee">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Secondary Color</label>
+                                    <div class="color-picker">
+                                        <input type="color" id="secondaryColor" class="color-input">
+                                        <input type="text" id="secondaryColorText" class="form-control" placeholder="#3a0ca3">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Accent Color</label>
+                                    <div class="color-picker">
+                                        <input type="color" id="accentColor" class="color-input">
+                                        <input type="text" id="accentColorText" class="form-control" placeholder="#f72585">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Background Color</label>
+                                    <div class="color-picker">
+                                        <input type="color" id="backgroundColor" class="color-input">
+                                        <input type="text" id="backgroundColorText" class="form-control" placeholder="#ffffff">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Text Color</label>
+                                    <div class="color-picker">
+                                        <input type="color" id="textColor" class="color-input">
+                                        <input type="text" id="textColorText" class="form-control" placeholder="#212529">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Settings -->
+                            <div id="contact" class="tab-content">
+                                <div class="form-group">
+                                    <label for="contactPhone">Phone Number</label>
+                                    <input type="text" id="contactPhone" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contactWhatsapp">WhatsApp Number</label>
+                                    <input type="text" id="contactWhatsapp" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contactEmail">Email Address</label>
+                                    <input type="email" id="contactEmail" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contactAddress">Store Address</label>
+                                    <textarea id="contactAddress" class="form-control"></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="workingHours">Working Hours</label>
+                                        <input type="text" id="workingHours" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="workingDays">Working Days</label>
+                                        <input type="text" id="workingDays" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Social Media Settings -->
+                            <div id="social" class="tab-content">
+                                <div class="form-group">
+                                    <label for="facebookUrl">Facebook Page URL</label>
+                                    <input type="url" id="facebookUrl" class="form-control" placeholder="https://facebook.com/yourpage">
+                                </div>
+                                <div class="form-group">
+                                    <label for="twitterUrl">Twitter URL</label>
+                                    <input type="url" id="twitterUrl" class="form-control" placeholder="https://twitter.com/yourprofile">
+                                </div>
+                                <div class="form-group">
+                                    <label for="instagramUrl">Instagram URL</label>
+                                    <input type="url" id="instagramUrl" class="form-control" placeholder="https://instagram.com/yourprofile">
+                                </div>
+                                <div class="form-group">
+                                    <label for="youtubeUrl">YouTube URL</label>
+                                    <input type="url" id="youtubeUrl" class="form-control" placeholder="https://youtube.com/yourchannel">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Settings
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="content-section danger-zone">
+                    <div class="section-header">
+                        <h2><i class="fas fa-exclamation-triangle"></i> Danger Zone</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="danger-zone-content">
+                            <div class="danger-zone-warning">
+                                <div class="warning-icon">
+                                    <i class="fas fa-radiation"></i>
+                                </div>
+                                <div class="warning-text">
+                                    <h3>Reset Store Data</h3>
+                                    <p>This action will permanently delete all products, orders, analytics data, and reset store settings to default. <strong>This action cannot be undone!</strong></p>
+                                    <div class="warning-alert">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        <span><strong>Warning:</strong> All your data will be lost including customer orders and product information.</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="reset-confirmation">
+                                <div class="form-group">
+                                    <label>Type "RESET" to confirm:</label>
+                                    <input type="text" id="resetConfirmInput" placeholder="Type RESET here">
+                                    <small>Must be typed in uppercase letters</small>
+                                </div>
+                                
+                                <button id="resetStoreBtn" disabled>
+                                    <i class="fas fa-bomb"></i>
+                                    Reset Store Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            <div id="profile-tab" class="tab-content">
+                <div class="content-section">
+                    <div class="section-header">
+                        <h2>Profile Settings</h2>
+                    </div>
+                    <div class="section-content">
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label for="adminNameInput">Admin Name</label>
+                                <input type="text" id="adminNameInput" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="adminRole">Role</label>
+                                <input type="text" id="adminRole" class="form-control" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="adminAvatar">Profile Picture</label>
+                                <div class="upload-area" id="avatarUploadArea">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                    <p>Click to upload profile picture</p>
+                                    <small>Recommended: 200x200px PNG or JPG</small>
+                                    <input type="file" id="avatarFileInput" accept="image/*" style="display: none;">
+                                </div>
+                                <input type="hidden" id="adminAvatar">
+                                <div class="image-preview-container">
+                                    <img id="avatarPreview" class="image-preview" style="display: none;">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Profile
+                            </button>
+                        </form>
+
+                        <div class="content-section password-section">
+                            <div class="section-header">
+                                <h2>Change Password</h2>
+                            </div>
+                            <div class="section-content">
+                                <form id="passwordForm">
+                                    <div class="form-group">
+                                        <label for="currentPassword">Current Password</label>
+                                        <input type="password" id="currentPassword" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="newPassword">New Password</label>
+                                        <input type="password" id="newPassword" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="confirmPassword">Confirm New Password</label>
+                                        <input type="password" id="confirmPassword" class="form-control" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-key"></i> Change Password
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="productModalTitle" class="modal-title">Add Product</h2>
+            <form id="productForm">
+                <input type="hidden" id="productId">
+                <div class="form-group">
+                    <label for="productName">Product Name</label>
+                    <input type="text" id="productName" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="productDescription">Description</label>
+                    <textarea id="productDescription" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productPrice">Price (DA)</label>
+                        <input type="number" id="productPrice" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="productQuantity">Quantity</label>
+                        <input type="number" id="productQuantity" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="productCategory">Category</label>
+                    <input type="text" id="productCategory" class="form-control" placeholder="Electronics, Fashion, etc.">
+                </div>
+                
+                <!-- Delivery Availability -->
+                <div class="form-group">
+                    <label for="productDelivery">Delivery Available</label>
+                    <select id="productDelivery" class="form-control">
+                        <option value="true" selected>Yes</option>
+                        <option value="false">No (Pickup Only)</option>
+                    </select>
+                </div>
+                
+                <!-- قسم رفع الصور -->
+                <div class="form-group">
+                    <label>Product Images</label>
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drag & drop images here or click to browse</p>
+                        <small>Supported formats: JPG, PNG, GIF (Max: 10MB)</small>
+                        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    <div class="image-preview-container" id="imagePreviewContainer">
+                        <!-- معاينة الصور تظهر هنا -->
+                    </div>
+                    <textarea id="productImages" class="form-control" rows="3" placeholder="Image URLs will appear here automatically" style="display: none;"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="productStatus">Status</label>
+                    <select id="productStatus" class="form-control">
+                        <option value="true" selected>Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Save Product</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="orderDetailsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 class="modal-title">Order Details #<span id="orderDetailsId"></span></h2>
+            <div class="order-details">
+                <div class="form-group">
+                    <label><strong>Customer Information</strong></label>
+                    <p>Name: <span id="orderCustomerName"></span></p>
+                    <p>Phone: <span id="orderCustomerPhone"></span></p>
+                    <p>Address: <span id="orderCustomerAddress"></span></p>
+                    <p>Delivery Option: <span id="orderDeliveryOption"></span></p>
+                </div>
+                
+                <div class="form-group">
+                    <label><strong>Order Items</strong></label>
+                    <div id="orderItemsList">
+                        <!-- Order items will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><strong>Order Summary</strong></label>
+                    <div class="order-summary">
+                        <div class="price-row total">
+                            <span>Total Amount:</span>
+                            <span id="orderTotalAmount">0 DA</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><strong>Special Notes</strong></label>
+                    <p id="orderNotes">No special notes provided.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="orderStatusSelect">Order Status</label>
+                    <select id="orderStatusSelect" class="form-control">
+                        <option value="pending">Pending</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                
+                <button type="button" class="btn btn-primary" id="updateOrderStatusBtn">
+                    <i class="fas fa-save"></i> Update Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
