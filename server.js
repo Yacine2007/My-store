@@ -16,32 +16,66 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
-// تكوين multer لرفع الملفات
-const storage = multer.memoryStorage();
+// تكوين multer لرفع الملفات - إصلاح التخزين
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, 'uploads');
+    // إنشاء مجلد التحميلات إذا لم يكن موجوداً
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    cb(null, uploadsDir);
+  },
+  filename: function (req, file, cb) {
+    // إنشاء اسم فريد للملف
+    const uniqueName = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
+    cb(null, uniqueName);
+  }
+});
+
 const upload = multer({ 
   storage: storage,
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB
+  },
+  fileFilter: function (req, file, cb) {
+    // التحقق من نوع الملف
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
   }
 });
 
 // Data file path
 const DATA_FILE = path.join(__dirname, 'data.json');
 
+// إنشاء مجلد التحميلات إذا لم يكن موجوداً
+const ensureUploadsDir = async () => {
+  const uploadsDir = path.join(__dirname, 'uploads');
+  try {
+    await fs.access(uploadsDir);
+  } catch (error) {
+    await fs.mkdir(uploadsDir, { recursive: true });
+    console.log('📁 Created uploads directory');
+  }
+};
+
 // Initialize data file
 const initializeDataFile = async () => {
   try {
     await fs.access(DATA_FILE);
-    console.log('Data file exists');
+    console.log('✅ Data file exists');
     
     // تحقق من صحة البيانات
     const data = await readData();
     if (!data || !data.user || !data.settings) {
       throw new Error('Invalid data structure');
     }
-    console.log('Data structure is valid');
+    console.log('✅ Data structure is valid');
   } catch (error) {
-    console.log('Creating initial data file...');
+    console.log('🔄 Creating initial data file...');
     
     const hashedPassword = await bcrypt.hash('user1234', 10);
     const initialData = {
@@ -91,7 +125,7 @@ const initializeDataFile = async () => {
       }
     };
     await fs.writeFile(DATA_FILE, JSON.stringify(initialData, null, 2));
-    console.log('Initial data file created successfully');
+    console.log('✅ Initial data file created successfully');
   }
 };
 
@@ -103,7 +137,7 @@ const readData = async () => {
     
     // تأكد من وجود جميع الحقول الأساسية
     if (!parsedData.user) {
-      console.log('Creating missing user field');
+      console.log('🔄 Creating missing user field');
       parsedData.user = {
         name: "Admin User",
         role: "System Administrator",
@@ -113,7 +147,7 @@ const readData = async () => {
     }
     
     if (!parsedData.settings) {
-      console.log('Creating missing settings field');
+      console.log('🔄 Creating missing settings field');
       parsedData.settings = {
         storeName: "My Store",
         heroTitle: "Welcome to Our Store",
@@ -130,7 +164,7 @@ const readData = async () => {
     
     return parsedData;
   } catch (error) {
-    console.error('Error reading data:', error);
+    console.error('❌ Error reading data:', error);
     return null;
   }
 };
@@ -156,18 +190,54 @@ const writeData = async (data) => {
   }
 };
 
-// رفع الصور - استخدام Base64 مباشرة
-async function uploadImage(imageBuffer) {
+// رفع الصور - إصلاح النظام
+app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
-    // تحويل الصورة إلى Base64
-    const base64Image = imageBuffer.toString('base64');
-    const imageUrl = `data:image/jpeg;base64,${base64Image}`;
-    return imageUrl;
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // إنشاء رابط للصورة
+    const imageUrl = `/uploads/${req.file.filename}`;
+    
+    console.log('✅ Image uploaded successfully:', imageUrl);
+    
+    res.json({ 
+      success: true, 
+      imageUrl: imageUrl,
+      message: 'Image uploaded successfully'
+    });
   } catch (error) {
-    console.error('Image upload error:', error);
-    throw new Error('Failed to process image');
+    console.error('❌ Upload error:', error);
+    res.status(500).json({ error: 'Failed to upload image: ' + error.message });
   }
-}
+});
+
+// رفع الصور بدون مصادقة (للمتجر)
+app.post('/api/upload-public', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // إنشاء رابط للصورة
+    const imageUrl = `/uploads/${req.file.filename}`;
+    
+    console.log('✅ Public image uploaded successfully:', imageUrl);
+    
+    res.json({ 
+      success: true, 
+      imageUrl: imageUrl,
+      message: 'Image uploaded successfully'
+    });
+  } catch (error) {
+    console.error('❌ Public upload error:', error);
+    res.status(500).json({ error: 'Failed to upload image: ' + error.message });
+  }
+});
+
+// خدمة ملفات التحميلات
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Authentication middleware
 const authenticateToken = (req, res, next) => {
@@ -195,7 +265,8 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    message: 'Server is running correctly'
+    message: 'Server is running correctly',
+    uploadsDir: path.join(__dirname, 'uploads')
   });
 });
 
@@ -209,48 +280,13 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// رفع الصور
-app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
-    }
-
-    const imageUrl = await uploadImage(req.file.buffer);
-    
-    res.json({ 
-      success: true, 
-      imageUrl: imageUrl 
-    });
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image' });
-  }
-});
-
-// رفع الصور بدون مصادقة (للمتجر)
-app.post('/api/upload-public', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
-    }
-
-    const imageUrl = await uploadImage(req.file.buffer);
-    
-    res.json({ 
-      success: true, 
-      imageUrl: imageUrl 
-    });
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image' });
-  }
-});
-
 // Debug endpoint
 app.get('/api/debug', async (req, res) => {
   try {
     const data = await readData();
+    const uploadsDir = path.join(__dirname, 'uploads');
+    const uploadsExist = fs.existsSync(uploadsDir);
+    
     if (data) {
       res.json({
         hasData: true,
@@ -258,6 +294,7 @@ app.get('/api/debug', async (req, res) => {
         settings: data.settings,
         productsCount: data.products.length,
         ordersCount: data.orders.length,
+        uploadsDirExists: uploadsExist,
         filePath: DATA_FILE
       });
     } else {
@@ -300,13 +337,16 @@ app.post('/api/login', async (req, res) => {
       res.status(401).json({ error: 'Invalid password' });
     }
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ error: 'Server error during login' });
   }
 });
 
+// باقي ال endpoints تبقى كما هي بدون تغيير...
+// [يتبع باقي الكود كما هو بدون تغيير في دوال products, orders, settings, etc.]
+
 // Change password
-app.post('/api/change-password', authenticateToken, async (req, res) => {
+app.put('/api/user/password', authenticateToken, async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   
   if (!currentPassword || !newPassword) {
@@ -334,7 +374,7 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update password' });
     }
   } catch (error) {
-    console.error('Password change error:', error);
+    console.error('❌ Password change error:', error);
     res.status(500).json({ error: 'Server error during password change' });
   }
 });
@@ -349,7 +389,7 @@ app.get('/api/settings', async (req, res) => {
       res.status(500).json({ error: 'Failed to load settings' });
     }
   } catch (error) {
-    console.error('Settings error:', error);
+    console.error('❌ Settings error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -373,7 +413,7 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Settings updated successfully:', data.settings);
+      console.log('✅ Settings updated successfully');
       res.json({ 
         success: true, 
         message: 'Settings updated successfully', 
@@ -383,7 +423,7 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update settings' });
     }
   } catch (error) {
-    console.error('Update settings error:', error);
+    console.error('❌ Update settings error:', error);
     res.status(500).json({ error: 'Server error during settings update' });
   }
 });
@@ -409,7 +449,7 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
     const success = await writeData(data);
 
     if (success) {
-      console.log('✅ Profile updated successfully:', data.user);
+      console.log('✅ Profile updated successfully');
       res.json({ 
         success: true, 
         message: 'Profile updated successfully',
@@ -423,7 +463,7 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update profile' });
     }
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error('❌ Update profile error:', error);
     res.status(500).json({ error: 'Server error during profile update' });
   }
 });
@@ -442,7 +482,7 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to load profile' });
     }
   } catch (error) {
-    console.error('Profile error:', error);
+    console.error('❌ Profile error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -452,12 +492,29 @@ app.get('/api/products', async (req, res) => {
   try {
     const data = await readData();
     if (data && data.products) {
-      res.json(data.products);
+      // إصلاح روابط الصور
+      const productsWithFixedImages = data.products.map(product => {
+        if (product.images && Array.isArray(product.images)) {
+          product.images = product.images.map(img => {
+            if (img.startsWith('data:image')) {
+              return img; // إذا كانت base64 تبقى كما هي
+            }
+            // إذا كانت اسم ملف فقط، أضف المسار
+            if (!img.startsWith('http') && !img.startsWith('/')) {
+              return `/uploads/${img}`;
+            }
+            return img;
+          });
+        }
+        return product;
+      });
+      
+      res.json(productsWithFixedImages);
     } else {
       res.status(500).json({ error: 'Failed to load products' });
     }
   } catch (error) {
-    console.error('Products error:', error);
+    console.error('❌ Products error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -498,7 +555,7 @@ app.post('/api/products', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to add product' });
     }
   } catch (error) {
-    console.error('Add product error:', error);
+    console.error('❌ Add product error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -539,7 +596,7 @@ app.put('/api/products/:id', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update product' });
     }
   } catch (error) {
-    console.error('Update product error:', error);
+    console.error('❌ Update product error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -563,7 +620,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to delete product' });
     }
   } catch (error) {
-    console.error('Delete product error:', error);
+    console.error('❌ Delete product error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -578,7 +635,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to load orders' });
     }
   } catch (error) {
-    console.error('Orders error:', error);
+    console.error('❌ Orders error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -611,6 +668,11 @@ app.post('/api/orders', async (req, res) => {
     }
 
     data.orders.push(newOrder);
+    
+    // تحديث الإحصائيات
+    data.analytics.ordersCount += 1;
+    data.analytics.revenue += newOrder.total;
+
     const success = await writeData(data);
 
     if (success) {
@@ -619,7 +681,7 @@ app.post('/api/orders', async (req, res) => {
       res.status(500).json({ error: 'Failed to create order' });
     }
   } catch (error) {
-    console.error('Create order error:', error);
+    console.error('❌ Create order error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -662,7 +724,7 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to update order status' });
     }
   } catch (error) {
-    console.error('Update order status error:', error);
+    console.error('❌ Update order status error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -683,7 +745,7 @@ app.post('/api/analytics/visitor', async (req, res) => {
       res.status(500).json({ error: 'Server error' });
     }
   } catch (error) {
-    console.error('Visitor tracking error:', error);
+    console.error('❌ Visitor tracking error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -698,7 +760,7 @@ app.get('/api/analytics', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to load analytics' });
     }
   } catch (error) {
-    console.error('Analytics error:', error);
+    console.error('❌ Analytics error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -720,26 +782,26 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
       res.status(500).json({ error: 'Failed to load dashboard stats' });
     }
   } catch (error) {
-    console.error('Dashboard stats error:', error);
+    console.error('❌ Dashboard stats error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Reset data endpoint (للتطوير فقط)
+// Reset data endpoint
 app.post('/api/reset-data', authenticateToken, async (req, res) => {
   try {
     await initializeDataFile();
     res.json({ success: true, message: 'Data reset successfully' });
   } catch (error) {
-    console.error('Reset data error:', error);
+    console.error('❌ Reset data error:', error);
     res.status(500).json({ error: 'Failed to reset data' });
   }
 });
 
 // Error handling middleware
 app.use((error, req, res, next) => {
-  console.error('Unhandled error:', error);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error('❌ Unhandled error:', error);
+  res.status(500).json({ error: 'Internal server error: ' + error.message });
 });
 
 // 404 handler
@@ -750,18 +812,20 @@ app.use((req, res) => {
 // Initialize and start server
 const startServer = async () => {
   try {
+    await ensureUploadsDir();
     await initializeDataFile();
     
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
+      console.log(`📁 Uploads directory: ${path.join(__dirname, 'uploads')}`);
       console.log(`📊 Data file: ${DATA_FILE}`);
       console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
