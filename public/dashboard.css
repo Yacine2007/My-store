@@ -376,19 +376,26 @@ tr:hover {
     gap: 12px;
 }
 
-.mobile-card {
+.mobile-product-card,
+.mobile-order-card {
     background: white;
     border-radius: var(--border-radius);
     padding: 15px;
     box-shadow: var(--box-shadow);
     border-left: 4px solid var(--primary);
+    transition: var(--transition);
+}
+
+.mobile-product-card:active,
+.mobile-order-card:active {
+    transform: scale(0.98);
 }
 
 .mobile-card-header {
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     gap: 10px;
 }
 
@@ -396,34 +403,61 @@ tr:hover {
     font-weight: 600;
     color: var(--dark);
     flex: 1;
+    font-size: 1rem;
+    line-height: 1.3;
 }
 
 .mobile-card-actions {
     display: flex;
     gap: 5px;
+    flex-shrink: 0;
 }
 
 .mobile-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mobile-card-section {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    font-size: 0.8rem;
+    gap: 10px;
+}
+
+.mobile-card-section.full {
+    grid-template-columns: 1fr;
 }
 
 .mobile-card-field {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
+}
+
+.mobile-card-field.compact {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .mobile-card-label {
     color: var(--gray);
     font-size: 0.75rem;
+    font-weight: 500;
 }
 
 .mobile-card-value {
     color: var(--dark);
     font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.mobile-card-actions.compact {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
 }
 
 /* Status Badges */
@@ -435,6 +469,7 @@ tr:hover {
     text-transform: capitalize;
     display: inline-block;
     text-align: center;
+    white-space: nowrap;
 }
 
 .status-badge.active { background: #d1edff; color: #004085; }
@@ -455,6 +490,8 @@ tr:hover {
     align-items: center;
     justify-content: center;
     gap: 4px;
+    min-height: 32px;
+    min-width: 32px;
 }
 
 .btn-primary { background: var(--primary); color: white; }
@@ -525,6 +562,7 @@ label {
     gap: 8px;
     text-decoration: none;
     white-space: nowrap;
+    min-height: 44px;
 }
 
 .btn:hover {
@@ -582,6 +620,9 @@ label {
     transition: var(--transition);
     white-space: nowrap;
     flex-shrink: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
 }
 
 .tab.active {
@@ -650,6 +691,7 @@ label {
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.05);
     z-index: 1;
+    min-height: 35px;
 }
 
 .close-modal:hover {
@@ -679,6 +721,11 @@ label {
     transition: var(--transition);
     position: relative;
     overflow: hidden;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .upload-area:hover {
@@ -743,6 +790,56 @@ label {
 
 .image-preview:hover {
     transform: scale(1.05);
+}
+
+/* Product Gallery in Mobile Modal */
+.product-gallery-mobile {
+    margin: 15px 0;
+}
+
+.product-main-image-mobile {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    border-radius: var(--border-radius);
+    margin-bottom: 10px;
+}
+
+.product-thumbnails {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 10px 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.product-thumbnail {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.product-thumbnail.active {
+    border-color: var(--primary);
+}
+
+.product-thumbnail:hover {
+    border-color: var(--primary);
+}
+
+.product-info-details-mobile {
+    padding: 15px 0;
+}
+
+.product-info-details-mobile h3 {
+    color: var(--dark);
+    margin-bottom: 15px;
+    font-size: 1.3rem;
 }
 
 /* Color Picker */
@@ -901,6 +998,7 @@ label {
     justify-content: center;
     gap: 8px;
     width: fit-content;
+    min-height: 44px;
 }
 
 #resetStoreBtn:hover:not(:disabled) {
@@ -980,6 +1078,10 @@ label {
     padding: 8px;
     border-radius: 6px;
     transition: var(--transition);
+    min-height: 44px;
+    min-width: 44px;
+    align-items: center;
+    justify-content: center;
 }
 
 .menu-toggle:hover {
@@ -1109,7 +1211,7 @@ label {
     }
     
     .menu-toggle {
-        display: block;
+        display: flex;
         position: absolute;
         top: 15px;
         left: 15px;
@@ -1188,6 +1290,24 @@ label {
         width: 100%;
         justify-content: center;
     }
+    
+    /* Mobile-specific product gallery */
+    .product-gallery-mobile {
+        margin: 10px 0;
+    }
+    
+    .product-main-image-mobile {
+        height: 200px;
+    }
+    
+    .product-thumbnail {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .product-info-details-mobile h3 {
+        font-size: 1.2rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1252,6 +1372,7 @@ label {
     
     .upload-area {
         padding: 20px 15px;
+        min-height: 100px;
     }
     
     .upload-area i {
@@ -1266,9 +1387,13 @@ label {
         padding: 12px;
     }
     
-    .mobile-card-body {
+    .mobile-card-section {
         grid-template-columns: 1fr;
-        gap: 6px;
+        gap: 8px;
+    }
+    
+    .mobile-card-actions.compact {
+        grid-template-columns: 1fr;
     }
     
     .order-item {
@@ -1279,6 +1404,15 @@ label {
     
     .order-item-price {
         align-self: flex-end;
+    }
+    
+    .product-main-image-mobile {
+        height: 180px;
+    }
+    
+    .product-thumbnail {
+        width: 45px;
+        height: 45px;
     }
 }
 
@@ -1322,8 +1456,13 @@ label {
         font-size: 16px; /* Prevent zoom on iOS */
     }
     
-    .mobile-card {
+    .mobile-product-card,
+    .mobile-order-card {
         padding: 12px;
+    }
+    
+    .product-main-image-mobile {
+        height: 160px;
     }
 }
 
@@ -1351,6 +1490,12 @@ label {
         padding-right: max(10px, env(safe-area-inset-right));
         padding-bottom: max(10px, env(safe-area-inset-bottom));
     }
+    
+    .modal {
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
 }
 
 /* Loading States */
@@ -1371,44 +1516,10 @@ label {
 }
 
 /* Enhanced Mobile Cards Layout */
-.mobile-product-card,
-.mobile-order-card {
-    background: white;
-    border-radius: 12px;
-    padding: 15px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border-left: 4px solid var(--primary);
-}
-
 .mobile-card-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 12px;
-}
-
-.mobile-card-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-
-.mobile-card-section.full {
-    grid-template-columns: 1fr;
-}
-
-.mobile-card-field.compact {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.mobile-card-actions.compact {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 10px;
 }
 
 /* Hide desktop tables on mobile */
@@ -1443,15 +1554,6 @@ label {
         margin-bottom: 15px;
     }
     
-    /* Improved mobile cards */
-    .mobile-card {
-        transition: var(--transition);
-    }
-    
-    .mobile-card:active {
-        transform: scale(0.98);
-    }
-    
     /* Better touch targets */
     .action-btn,
     .btn,
@@ -1473,6 +1575,20 @@ label {
         background-position: right 15px center;
         background-size: 12px;
     }
+    
+    /* Improved mobile cards spacing */
+    .mobile-product-card,
+    .mobile-order-card {
+        margin-bottom: 8px;
+    }
+    
+    .mobile-card-header {
+        margin-bottom: 10px;
+    }
+    
+    .mobile-card-body {
+        gap: 10px;
+    }
 }
 
 /* Print Styles */
@@ -1492,5 +1608,58 @@ label {
     .content-section {
         box-shadow: none;
         border: 1px solid #ddd;
+    }
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .stat-card {
+        border: 1px solid var(--dark);
+    }
+    
+    .content-section {
+        border: 1px solid var(--dark);
+    }
+    
+    .btn {
+        border: 1px solid currentColor;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
     }
 }
