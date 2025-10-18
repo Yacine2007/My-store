@@ -21,24 +21,30 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
-// إصلاح كامل لنظام رفع الملفات
+// نظام رفع الملفات المتوافق مع Render
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadsDir = path.join(__dirname, 'public', 'uploads');
-    
-    // التأكد من وجود المجلد
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+  destination: async function (req, file, cb) {
+    try {
+      const uploadsDir = path.join(__dirname, 'public', 'uploads');
+      
+      // إنشاء المجلد إذا لم يكن موجوداً (بدون existsSync)
+      try {
+        await fs.access(uploadsDir);
+      } catch (error) {
+        await fs.mkdir(uploadsDir, { recursive: true });
+        console.log('📁 Created uploads directory');
+      }
+      
+      cb(null, uploadsDir);
+    } catch (error) {
+      cb(error, null);
     }
-    cb(null, uploadsDir);
   },
   filename: function (req, file, cb) {
-    // تنظيف اسم الملف وإضافة طابع زمني
     const originalName = file.originalname;
     const fileExtension = path.extname(originalName);
     const baseName = path.basename(originalName, fileExtension);
     
-    // إزالة المسافات والأحرف الخاصة
     const cleanName = baseName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
@@ -59,14 +65,13 @@ const upload = multer({
       'image/jpg', 
       'image/png',
       'image/gif',
-      'image/webp',
-      'image/svg+xml'
+      'image/webp'
     ];
     
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`File type not allowed: ${file.mimetype}. Only images are allowed.`), false);
+      cb(new Error(`File type not allowed: ${file.mimetype}`), false);
     }
   }
 });
@@ -74,7 +79,7 @@ const upload = multer({
 // Data file path
 const DATA_FILE = path.join(__dirname, 'data.json');
 
-// إنشاء المجلدات المطلوبة
+// إنشاء المجلدات المطلوبة (متوافق مع Render)
 const ensureDirectories = async () => {
   const directories = [
     path.join(__dirname, 'public', 'uploads'),
@@ -212,7 +217,8 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    message: 'Server is running correctly'
+    message: 'Server is running correctly',
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -229,7 +235,7 @@ app.get('/', (req, res) => {
 // Serve uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
-// رفع الصور - نظام محسن تماماً
+// رفع الصور - إصدار متوافق مع Render
 app.post('/api/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     console.log('📤 Upload request received');
@@ -245,7 +251,8 @@ app.post('/api/upload', authenticateToken, upload.single('image'), async (req, r
       originalname: req.file.originalname,
       filename: req.file.filename,
       size: req.file.size,
-      mimetype: req.file.mimetype
+      mimetype: req.file.mimetype,
+      path: req.file.path
     });
 
     const imageUrl = `/uploads/${req.file.filename}`;
@@ -325,10 +332,11 @@ app.get('/api/debug', async (req, res) => {
     
     let uploadsInfo = { exists: false, files: [] };
     try {
+      await fs.access(uploadsDir);
       const files = await fs.readdir(uploadsDir);
       uploadsInfo = {
         exists: true,
-        files: files.slice(0, 10) // أول 10 ملفات فقط
+        files: files.slice(0, 10)
       };
     } catch (error) {
       uploadsInfo.exists = false;
@@ -343,7 +351,8 @@ app.get('/api/debug', async (req, res) => {
         productsCount: data.products ? data.products.length : 0,
         ordersCount: data.orders ? data.orders.length : 0,
         uploads: uploadsInfo,
-        filePath: DATA_FILE
+        filePath: DATA_FILE,
+        environment: process.env.NODE_ENV || 'development'
       });
     } else {
       res.json({ 
@@ -398,7 +407,7 @@ app.post('/api/login', async (req, res) => {
         }
       });
     } else {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // تأخير أمني
+      await new Promise(resolve => setTimeout(resolve, 1000));
       res.status(401).json({ 
         success: false,
         error: 'Invalid password' 
@@ -1025,9 +1034,9 @@ const startServer = async () => {
       console.log(`🏪 Store: http://localhost:${PORT}`);
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
-      console.log(`📁 Uploads directory: ${path.join(__dirname, 'public', 'uploads')}`);
+      console.log(`📁 Uploads: http://localhost:${PORT}/uploads`);
       console.log(`📊 Data file: ${DATA_FILE}`);
-      console.log(`✅ Server is ready and optimized for file uploads`);
+      console.log(`✅ Server optimized for Render deployment`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);
