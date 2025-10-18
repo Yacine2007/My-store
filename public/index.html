@@ -115,8 +115,7 @@
 
         .logo img {
             height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
+            object-fit: contain;
         }
 
         .logo h1 {
@@ -186,6 +185,17 @@
         .btn:hover {
             background: #d91a6a;
             transform: translateY(-3px);
+        }
+
+        .btn-order {
+            background: var(--success);
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1rem;
+        }
+
+        .btn-order:hover {
+            background: #3aa8d4;
         }
 
         /* Products Section */
@@ -281,7 +291,7 @@
             color: white;
         }
 
-        /* Product Details Modal */
+        /* Order Form Modal */
         .modal {
             display: none;
             position: fixed;
@@ -300,7 +310,7 @@
             background: white;
             border-radius: var(--border-radius);
             width: 100%;
-            max-width: 800px;
+            max-width: 600px;
             padding: 30px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             position: relative;
@@ -321,58 +331,6 @@
         .modal-title {
             margin-bottom: 20px;
             color: var(--primary);
-        }
-
-        .product-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            align-items: start;
-        }
-
-        .product-gallery {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .product-main-image {
-            width: 100%;
-            height: 300px;
-            object-fit: cover;
-            border-radius: var(--border-radius);
-        }
-
-        .product-thumbnails {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-        }
-
-        .product-thumbnail {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 8px;
-            cursor: pointer;
-            border: 2px solid transparent;
-        }
-
-        .product-thumbnail.active {
-            border-color: var(--primary);
-        }
-
-        .product-info-details {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .product-meta {
-            display: flex;
-            gap: 15px;
-            font-size: 0.9rem;
-            color: var(--gray);
         }
 
         .form-group {
@@ -431,11 +389,39 @@
             font-size: 1.1rem;
         }
 
+        .order-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            margin: 20px 0;
+        }
+
+        .price-details {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+        }
+
+        .price-row.total {
+            border-top: 2px solid var(--primary);
+            padding-top: 10px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+
         .contact-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            margin-top: 10px;
+            margin-top: 20px;
         }
 
         .contact-btn {
@@ -443,11 +429,12 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            padding: 10px;
+            padding: 12px;
             border-radius: var(--border-radius);
             text-decoration: none;
             font-weight: 600;
             transition: var(--transition);
+            text-align: center;
         }
 
         .contact-btn.whatsapp {
@@ -498,8 +485,7 @@
 
         .footer-logo img {
             height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
+            object-fit: contain;
         }
 
         .footer-logo h3 {
@@ -553,6 +539,39 @@
             font-size: 0.9rem;
         }
 
+        .developer-credit {
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        .developer-credit strong {
+            color: var(--primary);
+        }
+
+        .social-links {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .social-link {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #343a40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .social-link:hover {
+            background: var(--primary);
+            transform: translateY(-3px);
+        }
+
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -604,10 +623,6 @@
 
             .products-grid {
                 grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            }
-
-            .product-details {
-                grid-template-columns: 1fr;
             }
 
             .contact-buttons {
@@ -665,10 +680,9 @@
         <div class="container">
             <div class="header-content">
                 <div class="logo">
-                    <img id="storeLogo" src="https://raw.githubusercontent.com/Yacine2007/My-store/main/logo.png" alt="Store Logo">
+                    <img id="storeLogo" src="" alt="Store Logo" onerror="this.style.display='none'">
                     <h1 id="storeName">My Store</h1>
                 </div>
-              
             </div>
         </div>
     </header>
@@ -693,70 +707,56 @@
         </div>
     </section>
 
-    <!-- Product Details Modal -->
-    <div class="modal" id="productModal">
-        <div class="modal-content">
-            <span class="close-modal">&times;</span>
-            <h2 class="modal-title" id="productModalTitle">Product Details</h2>
-            <div class="product-details" id="productDetailsContent">
-                <!-- Product details will be populated here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Order Modal -->
+    <!-- Order Form Modal -->
     <div class="modal" id="orderModal">
         <div class="modal-content">
             <span class="close-modal">&times;</span>
-            <h2 class="modal-title">Place Order</h2>
+            <h2 class="modal-title">Order <span id="orderProductName"></span></h2>
             <form id="orderForm">
+                <input type="hidden" id="orderProductId">
                 <div class="form-group">
-                    <label for="productName">Product</label>
-                    <input type="text" id="productName" class="form-control" readonly>
+                    <label for="customerName">Full Name *</label>
+                    <input type="text" id="customerName" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="productPrice">Price</label>
-                    <input type="text" id="productPrice" class="form-control" readonly>
+                    <label for="customerPhone">Phone Number *</label>
+                    <input type="tel" id="customerPhone" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label for="quantity">Quantity</label>
+                    <label for="customerAddress">Delivery Address *</label>
+                    <textarea id="customerAddress" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="orderQuantity">Quantity *</label>
                     <div class="quantity-selector">
                         <button type="button" class="quantity-btn" id="decreaseQty">-</button>
-                        <input type="number" id="quantity" class="form-control quantity-input" value="1" min="1">
+                        <input type="number" id="orderQuantity" class="form-control quantity-input" value="1" min="1">
                         <button type="button" class="quantity-btn" id="increaseQty">+</button>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="customerName">Customer Name</label>
-                    <input type="text" id="customerName" class="form-control" required>
+                    <label for="orderNotes">Special Notes</label>
+                    <textarea id="orderNotes" class="form-control" rows="3" placeholder="Any special requests..."></textarea>
                 </div>
-                <div class="form-group">
-                    <label for="description">Special Notes</label>
-                    <textarea id="description" class="form-control" rows="3" placeholder="Any special requests or instructions..."></textarea>
+                <div class="order-summary">
+                    <div class="price-details">
+                        <div class="price-row">
+                            <span>Unit Price:</span>
+                            <span id="unitPrice">0 DA</span>
+                        </div>
+                        <div class="price-row">
+                            <span>Quantity:</span>
+                            <span id="summaryQuantity">1</span>
+                        </div>
+                        <div class="price-row total">
+                            <span>Total:</span>
+                            <span id="totalPrice">0 DA</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="address">Full Address</label>
-                    <textarea id="address" class="form-control" rows="3" placeholder="Enter your full address..." required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="phone">Phone Number</label>
-                    <input type="tel" id="phone" class="form-control" placeholder="Enter your phone number" required>
-                </div>
-                <button type="submit" class="btn">Place Order</button>
-                <div class="contact-buttons">
-                    <a href="#" id="whatsappLink" class="contact-btn whatsapp">
-                        <i class="fab fa-whatsapp"></i> WhatsApp
-                    </a>
-                    <a href="#" id="phoneLink" class="contact-btn phone">
-                        <i class="fas fa-phone"></i> Call
-                    </a>
-                    <a href="#" id="emailLink" class="contact-btn email">
-                        <i class="fas fa-envelope"></i> Email
-                    </a>
-                    <a href="#" id="facebookLink" class="contact-btn facebook">
-                        <i class="fab fa-facebook-f"></i> Facebook
-                    </a>
-                </div>
+                <button type="submit" class="btn btn-order">
+                    <i class="fas fa-shopping-cart"></i> Place Order
+                </button>
             </form>
         </div>
     </div>
@@ -767,41 +767,46 @@
             <div class="footer-content">
                 <div class="footer-about">
                     <div class="footer-logo">
-                        <img id="footerLogo" src="https://raw.githubusercontent.com/Yacine2007/My-store/main/logo.png" alt="Store Logo">
+                        <img id="footerLogo" src="" alt="Store Logo" onerror="this.style.display='none'">
                         <h3 id="footerStoreName">My Store</h3>
                     </div>
                     <p id="footerDescription">Your trusted partner for quality products and excellent service.</p>
+                    <div class="social-links" id="socialLinks">
+                        <!-- Social links will be populated here -->
+                    </div>
                 </div>
                 <div class="footer-contact">
                     <h4>Contact Us</h4>
-                    <p>
+                    <p id="phoneInfo" style="display: none;">
                         <i class="fas fa-phone"></i> 
                         <a href="#" id="footerPhoneLink">
                             <span id="footerPhone">+213 123 456 789</span>
                         </a>
                     </p>
-                    <p>
+                    <p id="emailInfo" style="display: none;">
                         <i class="fas fa-envelope"></i> 
                         <a href="#" id="footerEmailLink">
                             <span id="footerEmail">info@mystore.com</span>
                         </a>
                     </p>
-                    <p>
+                    <p id="whatsappInfo" style="display: none;">
                         <i class="fab fa-whatsapp"></i> 
-                        <a href="#" id="footerWhatsappLink">
+                        <a href="#" id="footerWhatsappLink" target="_blank">
                             <span id="footerWhatsapp">+213 123 456 789</span>
                         </a>
                     </p>
                     <p>
-                        <i class="fab fa-facebook"></i> 
-                        <a href="#" id="footerFacebookLink">
-                            <span id="footerFacebook">Our Facebook Page</span>
-                        </a>
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span id="footerAddress">Algiers, Algeria</span>
                     </p>
                 </div>
             </div>
             <div class="copyright">
-                <p>&copy; <span id="currentYear"></span> <span id="copyrightStoreName">My Store</span>. All rights reserved. | Designed with ❤️</p>
+                <p>&copy; <span id="currentYear"></span> <span id="copyrightStoreName">My Store</span>. All rights reserved.</p>
+                <p class="developer-credit">
+                    Designed & Developed by 
+                    <strong>B.Y PRO Software & Programming Services Company</strong>
+                </p>
             </div>
         </div>
     </footer>
@@ -817,10 +822,11 @@
 
         // DOM Elements
         const productsContainer = document.getElementById('products-container');
-        const productModal = document.getElementById('productModal');
         const orderModal = document.getElementById('orderModal');
         const notification = document.getElementById('notification');
         const notificationClose = document.getElementById('notificationClose');
+        const quantityInput = document.getElementById('orderQuantity');
+        const orderForm = document.getElementById('orderForm');
 
         // Initialize the store
         async function initStore() {
@@ -835,9 +841,6 @@
             
             // Setup event listeners
             setupEventListeners();
-            
-            // Show notification
-            showNotification('Welcome!', 'Store loaded successfully');
         }
 
         // Show notification
@@ -922,22 +925,59 @@
             document.getElementById('heroTitle').textContent = storeConfig.heroTitle || 'Welcome to Our Store';
             document.getElementById('heroDescription').textContent = storeConfig.heroDescription || 'Discover our amazing products with great offers and fast delivery.';
             
-            // Contact information
-            document.getElementById('footerPhone').textContent = storeConfig.contact?.phone || '+213 123 456 789';
-            document.getElementById('footerEmail').textContent = storeConfig.contact?.email || 'info@mystore.com';
-            document.getElementById('footerWhatsapp').textContent = storeConfig.contact?.whatsapp || '+213 123 456 789';
+            // Contact information - show only if available
+            if (storeConfig.contact?.phone) {
+                document.getElementById('phoneInfo').style.display = 'flex';
+                document.getElementById('footerPhone').textContent = storeConfig.contact.phone;
+                document.getElementById('footerPhoneLink').href = `tel:${storeConfig.contact.phone}`;
+            }
             
-            // Contact links
-            document.getElementById('footerPhoneLink').href = `tel:${storeConfig.contact?.phone || '+213123456789'}`;
-            document.getElementById('footerEmailLink').href = `mailto:${storeConfig.contact?.email || 'info@mystore.com'}`;
-            document.getElementById('footerWhatsappLink').href = `https://wa.me/${storeConfig.contact?.whatsapp?.replace(/[^0-9]/g, '') || '213123456789'}`;
-            document.getElementById('footerFacebookLink').href = storeConfig.social?.facebook || '#';
+            if (storeConfig.contact?.email) {
+                document.getElementById('emailInfo').style.display = 'flex';
+                document.getElementById('footerEmail').textContent = storeConfig.contact.email;
+                document.getElementById('footerEmailLink').href = `mailto:${storeConfig.contact.email}`;
+            }
+            
+            if (storeConfig.contact?.whatsapp) {
+                document.getElementById('whatsappInfo').style.display = 'flex';
+                document.getElementById('footerWhatsapp').textContent = storeConfig.contact.whatsapp;
+                document.getElementById('footerWhatsappLink').href = `https://wa.me/${storeConfig.contact.whatsapp.replace(/[^0-9]/g, '')}`;
+            }
+            
+            if (storeConfig.contact?.address) {
+                document.getElementById('footerAddress').textContent = storeConfig.contact.address;
+            }
             
             // Logo
             if (storeConfig.logo) {
                 document.getElementById('storeLogo').src = storeConfig.logo;
                 document.getElementById('footerLogo').src = storeConfig.logo;
+                document.getElementById('storeLogo').style.display = 'block';
+                document.getElementById('footerLogo').style.display = 'block';
             }
+            
+            // Social links - show only if available
+            const socialLinksContainer = document.getElementById('socialLinks');
+            socialLinksContainer.innerHTML = '';
+            
+            const socialPlatforms = [
+                { key: 'facebook', icon: 'fab fa-facebook-f', name: 'Facebook' },
+                { key: 'twitter', icon: 'fab fa-twitter', name: 'Twitter' },
+                { key: 'instagram', icon: 'fab fa-instagram', name: 'Instagram' },
+                { key: 'youtube', icon: 'fab fa-youtube', name: 'YouTube' }
+            ];
+            
+            socialPlatforms.forEach(platform => {
+                if (storeConfig.social?.[platform.key]) {
+                    const link = document.createElement('a');
+                    link.href = storeConfig.social[platform.key];
+                    link.className = 'social-link';
+                    link.target = '_blank';
+                    link.title = platform.name;
+                    link.innerHTML = `<i class="${platform.icon}"></i>`;
+                    socialLinksContainer.appendChild(link);
+                }
+            });
             
             // Apply theme colors
             if (storeConfig.theme) {
@@ -986,14 +1026,16 @@
                     : 'https://via.placeholder.com/300x200?text=No+Image';
                 
                 productCard.innerHTML = `
-                    <img src="${imageUrl}" alt="${product.name}" class="product-image" loading="lazy">
+                    <img src="${imageUrl}" alt="${product.name}" class="product-image" loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                     <div class="product-info">
                         <h3 class="product-title">${product.name}</h3>
                         <p class="product-description">${product.description || 'No description available.'}</p>
                         <div class="product-price">${product.price} ${storeConfig.currency || 'DA'}</div>
                         <div class="product-actions">
-                            <button class="btn btn-outline view-details" data-id="${product.id}">Details</button>
-                            <button class="btn order-btn" data-id="${product.id}">Order Now</button>
+                            <button class="btn order-btn" data-id="${product.id}">
+                                <i class="fas fa-shopping-cart"></i> Order Now
+                            </button>
                         </div>
                     </div>
                 `;
@@ -1001,86 +1043,13 @@
                 productsContainer.appendChild(productCard);
             });
             
-            // Add event listeners
-            setupProductEventListeners();
-        }
-
-        // Setup product event listeners
-        function setupProductEventListeners() {
-            // View details buttons
-            document.querySelectorAll('.view-details').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const productId = parseInt(e.target.dataset.id);
-                    viewProductDetails(productId);
-                });
-            });
-            
-            // Order buttons
+            // Add event listeners to order buttons
             document.querySelectorAll('.order-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    const productId = parseInt(e.target.dataset.id);
+                    const productId = parseInt(e.target.closest('.order-btn').dataset.id);
                     openOrderModal(productId);
                 });
             });
-        }
-
-        // View product details
-        function viewProductDetails(productId) {
-            const product = currentProducts.find(p => p.id === productId);
-            
-            if (!product) return;
-            
-            const images = product.images && product.images.length > 0 ? product.images : ['https://via.placeholder.com/500x400?text=No+Image'];
-            const mainImage = images[0];
-            
-            document.getElementById('productModalTitle').textContent = product.name;
-            
-            const detailsContent = `
-                <div class="product-gallery">
-                    <img src="${mainImage}" alt="${product.name}" class="product-main-image" id="mainProductImage">
-                    ${images.length > 1 ? `
-                    <div class="product-thumbnails">
-                        ${images.map((img, index) => `
-                            <img src="${img}" alt="Thumbnail ${index + 1}" class="product-thumbnail ${index === 0 ? 'active' : ''}" 
-                                 onclick="changeProductImage('${img}', this)">
-                        `).join('')}
-                    </div>
-                    ` : ''}
-                </div>
-                <div class="product-info-details">
-                    <h3>${product.name}</h3>
-                    <div class="product-meta">
-                        <span><i class="fas fa-tag"></i> ${product.category || 'Uncategorized'}</span>
-                        <span><i class="fas fa-box"></i> ${product.quantity} in stock</span>
-                    </div>
-                    <p>${product.description || 'No description available.'}</p>
-                    <div class="product-price" style="font-size: 2rem;">${product.price} ${storeConfig.currency || 'DA'}</div>
-                    <button class="btn" onclick="openOrderModal(${product.id})" style="width: 100%;">
-                        <i class="fas fa-shopping-cart"></i> Order Now
-                    </button>
-                    <div class="contact-buttons">
-                        <a href="https://wa.me/${storeConfig.contact?.whatsapp?.replace(/[^0-9]/g, '') || '213123456789'}?text=Hi! I'm interested in ${encodeURIComponent(product.name)}" 
-                           class="contact-btn whatsapp" target="_blank">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </a>
-                        <a href="tel:${storeConfig.contact?.phone || '+213123456789'}" class="contact-btn phone">
-                            <i class="fas fa-phone"></i> Call
-                        </a>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('productDetailsContent').innerHTML = detailsContent;
-            productModal.style.display = 'flex';
-        }
-
-        // Change product image in details view
-        function changeProductImage(imageUrl, element) {
-            document.getElementById('mainProductImage').src = imageUrl;
-            document.querySelectorAll('.product-thumbnail').forEach(thumb => {
-                thumb.classList.remove('active');
-            });
-            element.classList.add('active');
         }
 
         // Open order modal
@@ -1089,20 +1058,26 @@
             
             if (!selectedProduct) return;
             
-            productModal.style.display = 'none';
+            document.getElementById('orderProductName').textContent = selectedProduct.name;
+            document.getElementById('orderProductId').value = selectedProduct.id;
+            document.getElementById('unitPrice').textContent = selectedProduct.price + ' ' + (storeConfig.currency || 'DA');
             
-            document.getElementById('productName').value = selectedProduct.name;
-            document.getElementById('productPrice').value = `${selectedProduct.price} ${storeConfig.currency || 'DA'}`;
+            // Reset form
+            orderForm.reset();
             quantityInput.value = 1;
-            
-            // Update contact links
-            const productMessage = `Hi! I want to order ${selectedProduct.name} - ${selectedProduct.price} ${storeConfig.currency || 'DA'}`;
-            document.getElementById('whatsappLink').href = `https://wa.me/${storeConfig.contact?.whatsapp?.replace(/[^0-9]/g, '') || '213123456789'}?text=${encodeURIComponent(productMessage)}`;
-            document.getElementById('phoneLink').href = `tel:${storeConfig.contact?.phone || '+213123456789'}`;
-            document.getElementById('emailLink').href = `mailto:${storeConfig.contact?.email || 'info@mystore.com'}?subject=Order: ${encodeURIComponent(selectedProduct.name)}&body=${encodeURIComponent(productMessage)}`;
-            document.getElementById('facebookLink').href = storeConfig.social?.facebook || '#';
+            updateOrderSummary();
             
             orderModal.style.display = 'flex';
+        }
+
+        // Update order summary
+        function updateOrderSummary() {
+            const quantity = parseInt(quantityInput.value);
+            const unitPrice = selectedProduct.price;
+            const total = quantity * unitPrice;
+            
+            document.getElementById('summaryQuantity').textContent = quantity;
+            document.getElementById('totalPrice').textContent = total + ' ' + (storeConfig.currency || 'DA');
         }
 
         // Setup event listeners
@@ -1110,15 +1085,11 @@
             // Modal close events
             document.querySelectorAll('.close-modal').forEach(closeBtn => {
                 closeBtn.addEventListener('click', () => {
-                    productModal.style.display = 'none';
                     orderModal.style.display = 'none';
                 });
             });
             
             window.addEventListener('click', (e) => {
-                if (e.target === productModal) {
-                    productModal.style.display = 'none';
-                }
                 if (e.target === orderModal) {
                     orderModal.style.display = 'none';
                 }
@@ -1129,16 +1100,24 @@
                 const currentQty = parseInt(quantityInput.value);
                 if (currentQty > 1) {
                     quantityInput.value = currentQty - 1;
+                    updateOrderSummary();
                 }
             });
             
             document.getElementById('increaseQty').addEventListener('click', () => {
                 const currentQty = parseInt(quantityInput.value);
                 quantityInput.value = currentQty + 1;
+                updateOrderSummary();
+            });
+            
+            // Quantity input change
+            quantityInput.addEventListener('change', () => {
+                if (quantityInput.value < 1) quantityInput.value = 1;
+                updateOrderSummary();
             });
             
             // Order form submission
-            document.getElementById('orderForm').addEventListener('submit', async (e) => {
+            orderForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await submitOrder();
             });
@@ -1146,20 +1125,23 @@
 
         // Submit order
         async function submitOrder() {
-            const formData = new FormData(document.getElementById('orderForm'));
-            const quantity = parseInt(document.getElementById('quantity').value);
+            const quantity = parseInt(quantityInput.value);
+            const total = quantity * selectedProduct.price;
             
             const orderData = {
                 items: [{
                     productId: selectedProduct.id,
                     productName: selectedProduct.name,
                     price: selectedProduct.price,
-                    quantity: quantity
+                    quantity: quantity,
+                    unitPrice: selectedProduct.price,
+                    total: total
                 }],
                 customerName: document.getElementById('customerName').value,
-                description: document.getElementById('description').value,
-                address: document.getElementById('address').value,
-                phone: document.getElementById('phone').value
+                phone: document.getElementById('customerPhone').value,
+                address: document.getElementById('customerAddress').value,
+                description: document.getElementById('orderNotes').value,
+                total: total
             };
             
             try {
@@ -1176,7 +1158,7 @@
                 if (result.success) {
                     showNotification('Order Placed!', `Your order has been placed successfully! Order ID: ${result.orderId}`);
                     orderModal.style.display = 'none';
-                    document.getElementById('orderForm').reset();
+                    orderForm.reset();
                 } else {
                     showNotification('Error', 'Failed to place order. Please try again.', 'error');
                 }
