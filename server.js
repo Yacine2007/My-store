@@ -33,7 +33,14 @@ const initializeDataFile = async () => {
   try {
     await fs.access(DATA_FILE);
     console.log('Data file exists');
-  } catch {
+    
+    // تحقق من صحة البيانات
+    const data = await readData();
+    if (!data || !data.user || !data.settings) {
+      throw new Error('Invalid data structure');
+    }
+    console.log('Data structure is valid');
+  } catch (error) {
     console.log('Creating initial data file...');
     
     const hashedPassword = await bcrypt.hash('user1234', 10);
@@ -92,7 +99,36 @@ const initializeDataFile = async () => {
 const readData = async () => {
   try {
     const data = await fs.readFile(DATA_FILE, 'utf8');
-    return JSON.parse(data);
+    const parsedData = JSON.parse(data);
+    
+    // تأكد من وجود جميع الحقول الأساسية
+    if (!parsedData.user) {
+      console.log('Creating missing user field');
+      parsedData.user = {
+        name: "Admin User",
+        role: "System Administrator",
+        avatar: "",
+        password: await bcrypt.hash('user1234', 10)
+      };
+    }
+    
+    if (!parsedData.settings) {
+      console.log('Creating missing settings field');
+      parsedData.settings = {
+        storeName: "My Store",
+        heroTitle: "Welcome to Our Store",
+        heroDescription: "Discover our amazing products with great offers and fast delivery.",
+        currency: "DA",
+        language: "en",
+        storeStatus: true
+      };
+    }
+    
+    if (!parsedData.products) parsedData.products = [];
+    if (!parsedData.orders) parsedData.orders = [];
+    if (!parsedData.analytics) parsedData.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
+    
+    return parsedData;
   } catch (error) {
     console.error('Error reading data:', error);
     return null;
@@ -102,11 +138,20 @@ const readData = async () => {
 // Write data to file
 const writeData = async (data) => {
   try {
-    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2));
-    console.log('Data saved successfully to data.json');
+    // تأكد من وجود جميع الحقول الأساسية قبل الحفظ
+    const completeData = {
+      settings: data.settings || {},
+      user: data.user || {},
+      products: data.products || [],
+      orders: data.orders || [],
+      analytics: data.analytics || { visitors: 0, ordersCount: 0, revenue: 0 }
+    };
+    
+    await fs.writeFile(DATA_FILE, JSON.stringify(completeData, null, 2));
+    console.log('✅ Data saved successfully to data.json');
     return true;
   } catch (error) {
-    console.error('Error writing data:', error);
+    console.error('❌ Error writing data:', error);
     return false;
   }
 };
@@ -143,6 +188,16 @@ const authenticateToken = (req, res, next) => {
 };
 
 // Routes
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    message: 'Server is running correctly'
+  });
+});
 
 // Serve dashboard
 app.get('/admin', (req, res) => {
@@ -202,7 +257,8 @@ app.get('/api/debug', async (req, res) => {
         userExists: !!data.user,
         settings: data.settings,
         productsCount: data.products.length,
-        ordersCount: data.orders.length
+        ordersCount: data.orders.length,
+        filePath: DATA_FILE
       });
     } else {
       res.json({ hasData: false });
@@ -287,7 +343,7 @@ app.post('/api/change-password', authenticateToken, async (req, res) => {
 app.get('/api/settings', async (req, res) => {
   try {
     const data = await readData();
-    if (data) {
+    if (data && data.settings) {
       res.json(data.settings);
     } else {
       res.status(500).json({ error: 'Failed to load settings' });
@@ -305,20 +361,30 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
     const data = await readData();
 
     if (!data) {
-      return res.status(500).json({ error: 'Server error' });
+      return res.status(500).json({ error: 'Server error - no data found' });
     }
 
-    data.settings = { ...data.settings, ...settings };
+    // تحديث الإعدادات مع الحفاظ على القيم الحالية
+    data.settings = { 
+      ...data.settings, 
+      ...settings 
+    };
+
     const success = await writeData(data);
 
     if (success) {
-      res.json({ success: true, message: 'Settings updated successfully', settings: data.settings });
+      console.log('✅ Settings updated successfully:', data.settings);
+      res.json({ 
+        success: true, 
+        message: 'Settings updated successfully', 
+        settings: data.settings 
+      });
     } else {
       res.status(500).json({ error: 'Failed to update settings' });
     }
   } catch (error) {
     console.error('Update settings error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error during settings update' });
   }
 });
 
@@ -329,15 +395,21 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
     const data = await readData();
 
     if (!data) {
-      return res.status(500).json({ error: 'Server error' });
+      return res.status(500).json({ error: 'Server error - no data found' });
     }
 
+    if (!data.user) {
+      data.user = {};
+    }
+
+    // تحديث بيانات المستخدم
     data.user.name = name || data.user.name;
     data.user.avatar = avatar || data.user.avatar;
 
     const success = await writeData(data);
 
     if (success) {
+      console.log('✅ Profile updated successfully:', data.user);
       res.json({ 
         success: true, 
         message: 'Profile updated successfully',
@@ -352,6 +424,25 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
     }
   } catch (error) {
     console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Server error during profile update' });
+  }
+});
+
+// Get user profile
+app.get('/api/user/profile', authenticateToken, async (req, res) => {
+  try {
+    const data = await readData();
+    if (data && data.user) {
+      res.json({
+        name: data.user.name,
+        role: data.user.role,
+        avatar: data.user.avatar
+      });
+    } else {
+      res.status(500).json({ error: 'Failed to load profile' });
+    }
+  } catch (error) {
+    console.error('Profile error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -360,7 +451,7 @@ app.put('/api/user/profile', authenticateToken, async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const data = await readData();
-    if (data) {
+    if (data && data.products) {
       res.json(data.products);
     } else {
       res.status(500).json({ error: 'Failed to load products' });
@@ -393,6 +484,10 @@ app.post('/api/products', authenticateToken, async (req, res) => {
       images: productData.images || [],
       createdAt: new Date().toISOString()
     };
+
+    if (!data.products) {
+      data.products = [];
+    }
 
     data.products.push(newProduct);
     const success = await writeData(data);
@@ -477,7 +572,7 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
 app.get('/api/orders', authenticateToken, async (req, res) => {
   try {
     const data = await readData();
-    if (data) {
+    if (data && data.orders) {
       res.json(data.orders);
     } else {
       res.status(500).json({ error: 'Failed to load orders' });
@@ -510,6 +605,10 @@ app.post('/api/orders', async (req, res) => {
       total: orderData.total || orderData.items.reduce((sum, item) => sum + (item.price * item.quantity), 0),
       createdAt: new Date().toISOString()
     };
+
+    if (!data.orders) {
+      data.orders = [];
+    }
 
     data.orders.push(newOrder);
     const success = await writeData(data);
@@ -546,13 +645,13 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
 
     // إذا تم تغيير الحالة إلى "مكتمل" ولم يكن مكتملاً من قبل، أضف الإيرادات
     if (status === 'completed' && oldStatus !== 'completed') {
-      data.analytics.revenue += order.total;
       data.analytics.ordersCount += 1;
+      data.analytics.revenue += order.total;
     }
     // إذا تم تغيير الحالة من "مكتمل" إلى حالة أخرى، اطرح الإيرادات
     else if (oldStatus === 'completed' && status !== 'completed') {
-      data.analytics.revenue -= order.total;
       data.analytics.ordersCount -= 1;
+      data.analytics.revenue -= order.total;
     }
 
     const success = await writeData(data);
@@ -574,6 +673,9 @@ app.post('/api/analytics/visitor', async (req, res) => {
     const data = await readData();
 
     if (data) {
+      if (!data.analytics) {
+        data.analytics = { visitors: 0, ordersCount: 0, revenue: 0 };
+      }
       data.analytics.visitors += 1;
       await writeData(data);
       res.json({ success: true });
@@ -590,7 +692,7 @@ app.post('/api/analytics/visitor', async (req, res) => {
 app.get('/api/analytics', authenticateToken, async (req, res) => {
   try {
     const data = await readData();
-    if (data) {
+    if (data && data.analytics) {
       res.json(data.analytics);
     } else {
       res.status(500).json({ error: 'Failed to load analytics' });
@@ -606,12 +708,12 @@ app.get('/api/dashboard/stats', authenticateToken, async (req, res) => {
   try {
     const data = await readData();
     if (data) {
-      const completedOrders = data.orders.filter(order => order.status === 'completed');
+      const completedOrders = data.orders ? data.orders.filter(order => order.status === 'completed') : [];
       const stats = {
         orders: completedOrders.length,
-        products: data.products.length,
-        visitors: data.analytics.visitors,
-        revenue: data.analytics.revenue
+        products: data.products ? data.products.length : 0,
+        visitors: data.analytics ? data.analytics.visitors : 0,
+        revenue: data.analytics ? data.analytics.revenue : 0
       };
       res.json(stats);
     } else {
@@ -656,6 +758,7 @@ const startServer = async () => {
       console.log(`👨‍💼 Admin: http://localhost:${PORT}/admin`);
       console.log(`🔑 Default password: user1234`);
       console.log(`📊 Data file: ${DATA_FILE}`);
+      console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
