@@ -149,7 +149,10 @@ async function loadStoreSettingsForLogin() {
     try {
         const settings = await apiRequest('/settings');
         if (settings && settings.logo) {
-            document.getElementById('loginLogo').src = settings.logo;
+            const fullLogoUrl = settings.logo.startsWith('http') ? 
+                settings.logo : 
+                `${API_BASE_URL.replace('/api', '')}${settings.logo}`;
+            document.getElementById('loginLogo').src = fullLogoUrl;
         }
     } catch (error) {
         console.log('⚠️ Could not load store settings for login');
@@ -159,14 +162,18 @@ async function loadStoreSettingsForLogin() {
 // Update User Info
 function updateUserInfo() {
     if (currentUser) {
-        document.getElementById('adminName').textContent = currentUser.name;
-        document.getElementById('adminNameInput').value = currentUser.name;
+        document.getElementById('adminName').textContent = currentUser.name || 'Admin User';
+        document.getElementById('adminNameInput').value = currentUser.name || 'Admin User';
         document.getElementById('adminRole').value = currentUser.role || 'System Administrator';
         
         // Update avatar if available
         const adminAvatar = document.getElementById('adminAvatar');
         if (currentUser.avatar) {
-            adminAvatar.innerHTML = `<img src="${currentUser.avatar}" alt="${currentUser.name}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            const avatarUrl = currentUser.avatar.startsWith('http') ? 
+                currentUser.avatar : 
+                `${API_BASE_URL.replace('/api', '')}${currentUser.avatar}`;
+            
+            adminAvatar.innerHTML = `<img src="${avatarUrl}" alt="${currentUser.name}" style="width: 100%; height: 100%; object-fit: cover;">`;
         } else {
             adminAvatar.innerHTML = '<i class="fas fa-user"></i>';
         }
@@ -495,8 +502,9 @@ function displayProducts(products) {
     }
     
     products.forEach(product => {
+        // استخدام URL كامل للصور
         const imageUrl = product.images && product.images.length > 0 ? 
-            product.images[0] : 
+            (product.images[0].startsWith('http') ? product.images[0] : `${API_BASE_URL.replace('/api', '')}${product.images[0]}`) : 
             'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K';
         
         const row = document.createElement('tr');
@@ -504,7 +512,7 @@ function displayProducts(products) {
             <td>
                 <img src="${imageUrl}" alt="${product.name}" 
                      style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;"
-                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'">
+                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA4MjUgMzYgMjYuNUMzNiAzMi45MTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45MTc1IDE0IDI2LjVDMTQgMjAuMDgyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'">
             </td>
             <td>${product.name}</td>
             <td>${product.price} DA</td>
@@ -552,9 +560,10 @@ function displayProductsMobile(products) {
     }
     
     products.forEach(product => {
+        // استخدام URL كامل للصور
         const imageUrl = product.images && product.images.length > 0 ? 
-            product.images[0] : 
-            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K';
+            (product.images[0].startsWith('http') ? product.images[0] : `${API_BASE_URL.replace('/api', '')}${product.images[0]}`) : 
+            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA4MjUgMzYgMjYuNUMzNiAzMi45MTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45MTc1IDE0IDI2LjVDMTQgMjAuMDgyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K';
         
         const card = document.createElement('div');
         card.className = 'mobile-product-card';
@@ -576,7 +585,7 @@ function displayProductsMobile(products) {
                         <div class="mobile-card-label">Image</div>
                         <img src="${imageUrl}" alt="${product.name}" 
                              style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
-                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'">
+                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA4MjUgMzYgMjYuNUMzNiAzMi45MTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45MTc1IDE0IDI2LjVDMTQgMjAuMDgyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'">
                     </div>
                     <div class="mobile-card-field">
                         <div class="mobile-card-label">Price</div>
@@ -877,7 +886,11 @@ async function showProductDetailsMobile(productId) {
     try {
         const product = await apiRequest(`/products/${productId}`);
         
-        const images = product.images && product.images.length > 0 ? product.images : ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA0MjUgMzYgMjYuNUMzNiAzMi45NTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45NTc1IDE0IDI2LjVDMTQgMjAuMDQyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'];
+        // استخدام URLs كاملة للصور
+        const images = product.images && product.images.length > 0 ? 
+            product.images.map(img => img.startsWith('http') ? img : `${API_BASE_URL.replace('/api', '')}${img}`) : 
+            ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAiIGhlaWdodD0iNTAiIHZpZXdCb3g9IjAgMCA1MCA1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiBmaWxsPSIjZjhGOUZBIiByeD0iNCIvPgo8cGF0aCBkPSJNMzAgMjBIMjBWMzBIMzBWMjBaIiBmaWxsPSIjQzVDOUM5Ii8+CjxwYXRoIGQ9Ik0yNSAxNUMzMS4wODI1IDE1IDM2IDIwLjA4MjUgMzYgMjYuNUMzNiAzMi45MTc1IDMxLjA4MjUgMzggMjUgMzhDMTguOTE3NSAzOCAxNCAzMi45MTc1IDE0IDI2LjVDMTQgMjAuMDgyNSAxOC45MTc1IDE1IDI1IDE1WiIgZmlsbD0iI0M1QzlDOSIvPgo8L3N2Zz4K'];
+        
         const mainImage = images[0];
         
         let imagesHTML = '';
@@ -970,7 +983,15 @@ function populateSettingsForm(settings) {
     document.getElementById('heroDescription').value = settings.heroDescription || '';
     document.getElementById('currency').value = settings.currency || 'DA';
     document.getElementById('language').value = settings.language || 'en';
-    document.getElementById('storeLogo').value = settings.logo || '';
+    
+    // استخدام URL كامل للشعار
+    if (settings.logo) {
+        const fullLogoUrl = settings.logo.startsWith('http') ? 
+            settings.logo : 
+            `${API_BASE_URL.replace('/api', '')}${settings.logo}`;
+        document.getElementById('storeLogo').value = fullLogoUrl;
+    }
+    
     document.getElementById('storeStatus').value = settings.storeStatus ? 'true' : 'false';
     
     // Theme Settings
@@ -1008,14 +1029,20 @@ function populateSettingsForm(settings) {
     // Update logo preview
     const logoPreview = document.getElementById('logoPreview');
     if (settings.logo && logoPreview) {
-        logoPreview.src = settings.logo;
+        const fullLogoUrl = settings.logo.startsWith('http') ? 
+            settings.logo : 
+            `${API_BASE_URL.replace('/api', '')}${settings.logo}`;
+        logoPreview.src = fullLogoUrl;
         logoPreview.style.display = 'block';
     }
     
     // Update login logo
     const loginLogo = document.getElementById('loginLogo');
     if (settings.logo && loginLogo) {
-        loginLogo.src = settings.logo;
+        const fullLogoUrl = settings.logo.startsWith('http') ? 
+            settings.logo : 
+            `${API_BASE_URL.replace('/api', '')}${settings.logo}`;
+        loginLogo.src = fullLogoUrl;
     }
 }
 
@@ -1023,14 +1050,17 @@ function populateSettingsForm(settings) {
 function populateProfileForm(userData) {
     if (!userData) return;
     
-    document.getElementById('adminNameInput').value = userData.name || '';
+    document.getElementById('adminNameInput').value = userData.name || 'Admin User';
     document.getElementById('adminRole').value = userData.role || 'System Administrator';
     document.getElementById('adminAvatar').value = userData.avatar || '';
     
     // Update avatar preview
     const avatarPreview = document.getElementById('avatarPreview');
     if (userData.avatar && avatarPreview) {
-        avatarPreview.src = userData.avatar;
+        const fullAvatarUrl = userData.avatar.startsWith('http') ? 
+            userData.avatar : 
+            `${API_BASE_URL.replace('/api', '')}${userData.avatar}`;
+        avatarPreview.src = fullAvatarUrl;
         avatarPreview.style.display = 'block';
     }
 }
@@ -1118,8 +1148,9 @@ async function handleProfileUpdate(e) {
             avatar: document.getElementById('adminAvatar').value
         };
         
-        if (!profileData.name.trim()) {
-            throw new Error('Please enter your name');
+        // إذا كان الاسم فارغاً، لا نرسله للتحديث
+        if (profileData.name.trim() === '') {
+            delete profileData.name;
         }
         
         const updatedUser = await apiRequest('/user/profile', {
@@ -1332,20 +1363,23 @@ async function handleLogoUpload(file) {
         });
         
         if (result.success && result.imageUrl) {
+            // إنشاء URL كامل للصورة
+            const fullImageUrl = `${API_BASE_URL.replace('/api', '')}${result.imageUrl}`;
+            
             // Update preview
             const logoPreview = document.getElementById('logoPreview');
             if (logoPreview) {
-                logoPreview.src = result.imageUrl;
+                logoPreview.src = fullImageUrl;
                 logoPreview.style.display = 'block';
             }
             
             // Update hidden field
-            document.getElementById('storeLogo').value = result.imageUrl;
+            document.getElementById('storeLogo').value = fullImageUrl;
             
             // Update login logo
             const loginLogo = document.getElementById('loginLogo');
             if (loginLogo) {
-                loginLogo.src = result.imageUrl;
+                loginLogo.src = fullImageUrl;
             }
             
             showNotification('Success', 'Logo uploaded successfully!', 'success');
@@ -1380,20 +1414,23 @@ async function handleAvatarUpload(file) {
         });
         
         if (result.success && result.imageUrl) {
+            // إنشاء URL كامل للصورة
+            const fullImageUrl = `${API_BASE_URL.replace('/api', '')}${result.imageUrl}`;
+            
             // Update preview
             const avatarPreview = document.getElementById('avatarPreview');
             if (avatarPreview) {
-                avatarPreview.src = result.imageUrl;
+                avatarPreview.src = fullImageUrl;
                 avatarPreview.style.display = 'block';
             }
             
             // Update hidden field
-            document.getElementById('adminAvatar').value = result.imageUrl;
+            document.getElementById('adminAvatar').value = fullImageUrl;
             
             // Update admin avatar
             const adminAvatar = document.getElementById('adminAvatar');
             if (adminAvatar) {
-                adminAvatar.innerHTML = `<img src="${result.imageUrl}" alt="${currentUser?.name || 'Admin'}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                adminAvatar.innerHTML = `<img src="${fullImageUrl}" alt="${currentUser?.name || 'Admin'}" style="width: 100%; height: 100%; object-fit: cover;">`;
             }
             
             showNotification('Success', 'Profile picture uploaded successfully!', 'success');
@@ -1443,7 +1480,9 @@ async function handleProductImagesUpload(files) {
             });
             
             if (result.success && result.imageUrl) {
-                uploadedUrls.push(result.imageUrl);
+                // إنشاء URL كامل للصورة
+                const fullImageUrl = `${API_BASE_URL.replace('/api', '')}${result.imageUrl}`;
+                uploadedUrls.push(fullImageUrl);
                 
                 // Update progress
                 if (progressFill) {
@@ -1454,7 +1493,7 @@ async function handleProductImagesUpload(files) {
                 // Add image preview
                 if (imagePreviewContainer) {
                     const img = document.createElement('img');
-                    img.src = result.imageUrl;
+                    img.src = fullImageUrl;
                     img.className = 'image-preview';
                     img.style.display = 'block';
                     imagePreviewContainer.appendChild(img);
@@ -1718,7 +1757,12 @@ async function editProduct(productId) {
         if (imagePreviewContainer) imagePreviewContainer.innerHTML = '';
         
         if (product.images && product.images.length > 0) {
-            product.images.forEach(imageUrl => {
+            // استخدام URLs كاملة للصور
+            const fullImageUrls = product.images.map(img => 
+                img.startsWith('http') ? img : `${API_BASE_URL.replace('/api', '')}${img}`
+            );
+            
+            fullImageUrls.forEach(imageUrl => {
                 if (imagePreviewContainer) {
                     const img = document.createElement('img');
                     img.src = imageUrl;
@@ -1727,7 +1771,7 @@ async function editProduct(productId) {
                     imagePreviewContainer.appendChild(img);
                 }
             });
-            if (productImages) productImages.value = product.images.join(',');
+            if (productImages) productImages.value = fullImageUrls.join(',');
         }
         
         showModal(document.getElementById('productModal'));
