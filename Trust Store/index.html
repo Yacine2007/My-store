@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trust Store - خدمات التسويق الرقمي والوساطة</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* CSS Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary-color: #e53935; /* الأحمر */
+            --secondary-color: #212121; /* الأسود */
+            --accent-color: #f5f5f5; /* الأبيض */
+            --text-color: #333;
+            --light-gray: #f9f9f9;
+        }
+
+        body {
+            background-color: var(--accent-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        /* Header Styles */
+        header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo img {
+            height: 50px;
+            margin-left: 10px;
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .logo .trust {
+            color: var(--primary-color);
+        }
+
+        .logo .store {
+            color: var(--secondary-color);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+
+        nav ul li {
+            margin-left: 1.5rem;
+        }
+
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        nav ul li a:hover {
+            color: var(--primary-color);
+        }
+
+        nav ul li a::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -5px;
+            right: 0;
+            background-color: var(--primary-color);
+            transition: width 0.3s;
+        }
+
+        nav ul li a:hover::after {
+            width: 100%;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            padding: 5rem 0;
+            text-align: center;
+        }
+
+        .hero h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+            border: 2px solid var(--primary-color);
+            margin: 0 0.5rem;
+        }
+
+        .btn:hover {
+            background-color: transparent;
+            color: var(--primary-color);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 2px solid white;
+        }
+
+        .btn-secondary:hover {
+            background-color: white;
+            color: var(--secondary-color);
+        }
+
+        /* Services Section */
+        .services {
+            padding: 4rem 0;
+            background-color: var(--light-gray);
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: var(--secondary-color);
+            position: relative;
+        }
+
+        .section-title:after {
+            content: '';
+            display: block;
+            width: 80px;
+            height: 3px;
+            background-color: var(--primary-color);
+            margin: 10px auto;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .service-card {
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .service-card:hover {
+            transform: translateY(-10px);
+        }
+
+        .service-icon {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 2rem;
+        }
+
+        .service-content {
+            padding: 1.5rem;
+        }
+
+        .service-content h3 {
+            margin-bottom: 1rem;
+            color: var(--secondary-color);
+        }
+
+        /* Mediators Section */
+        .mediators {
+            padding: 4rem 0;
+            background-color: white;
+        }
+
+        .mediators-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+
+        .mediator-card {
+            background-color: var(--light-gray);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .mediator-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .mediator-image {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            margin: 1.5rem auto;
+            overflow: hidden;
+            border: 3px solid var(--primary-color);
+        }
+
+        .mediator-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .mediator-content {
+            padding: 1rem;
+        }
+
+        .mediator-content h3 {
+            margin-bottom: 0.5rem;
+            color: var(--secondary-color);
+        }
+
+        .mediator-content p {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .social-link {
+            display: inline-block;
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            margin: 0.2rem;
+        }
+
+        .social-link:hover {
+            background-color: var(--primary-color);
+        }
+
+        /* Store Section */
+        .store {
+            padding: 4rem 0;
+            color: #000000;
+            text-align: center;
+        }
+
+        .store-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .store-icon {
+            font-size: 4rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .store h2 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .store p {
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        /* Group Section */
+        .group {
+            padding: 4rem 0;
+            background-color: white;
+            text-align: center;
+        }
+
+        .group-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .group-icon {
+            font-size: 4rem;
+            color: var(--primary-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .group h2 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .group p {
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        /* About Section */
+        .about {
+            padding: 4rem 0;
+            background-color: var(--light-gray);
+        }
+
+        .about-content {
+            display: flex;
+            align-items: center;
+            gap: 3rem;
+        }
+
+        .about-text {
+            flex: 1;
+        }
+
+        .about-image {
+            flex: 1;
+            text-align: center;
+        }
+
+        .about-image img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .about-image img:hover {
+            transform: scale(1.05);
+        }
+
+        .company-logo-small {
+            width: 80px;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .company-logo-small:hover {
+            transform: scale(1.1);
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 3rem 0 1rem;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .footer-logo {
+            flex: 1;
+            min-width: 300px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .footer-logo img {
+            height: 40px;
+            margin-left: 10px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .footer-logo img:hover {
+            transform: scale(1.1);
+        }
+
+        .footer-logo-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .footer-logo-text .trust {
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .footer-logo-text .store {
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .footer-logo-text .by-pro {
+            color: #aaa;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .footer-links {
+            flex: 1;
+            min-width: 200px;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-links h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links ul li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-links ul li a {
+            color: #ddd;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links ul li a:hover {
+            color: var(--primary-color);
+        }
+
+        .copyright {
+            text-align: center;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .logo {
+                margin-bottom: 1rem;
+            }
+
+            nav ul {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            nav ul li {
+                margin: 0 0.5rem;
+            }
+
+            .hero h2 {
+                font-size: 2rem;
+            }
+
+            .hero-buttons {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .hero-buttons .btn {
+                margin: 0;
+            }
+
+            .about-content {
+                flex-direction: column;
+            }
+
+            .footer-content {
+                flex-direction: column;
+            }
+
+            .footer-logo {
+                justify-content: center;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <img src="logo.png" alt="Trust Store Logo">
+                    <h1><span class="trust">Trust</span> <span class="store" style="color: #FFFFFF;" >Store</span></h1>
+                </div>
+                <nav>
+                    <ul>
+                        <li><a href="#home">الرئيسية</a></li>
+                        <li><a href="#services">خدماتنا</a></li>
+                        <li><a href="#mediators">وسطاؤنا</a></li>
+                        <li><a href="#store">متجر الحسابات</a></li>
+                        <li><a href="#group">مجتمعنا</a></li>
+                        <li><a href="#about">من نحن</a></li>
+                        <li><a href="#contact">اتصل بنا</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="container">
+            <h2>خدمات التسويق الرقمي والوساطة الاحترافية</h2>
+            <p>نقدم لكم أفضل خدمات التسويق الرقمي والوساطة في عالم السوشيال ميديا مع ضمان الجودة والأمان في كل تعامل</p>
+            <div class="hero-buttons">
+                <a href="#services" class="btn">اكتشف خدماتنا</a>
+                <a href="#store" class="btn">متجر الحسابات</a>
+                <a href="https://facebook.com/groups/25399354196391174/" class="btn btn-secondary" target="_blank">
+                    <i class="fab fa-facebook"></i> انضم لمجتمعنا
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section class="services" id="services">
+        <div class="container">
+            <h2 class="section-title">خدمات التسويق الرقمي</h2>
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="service-icon">🛍️</div>
+                    <div class="service-content">
+                        <h3>بيع وشراء كل ما يخص السوشيال ميديا</h3>
+                        <p>نوفر خدمات البيع والشراء للحسابات والمحتوى المتعلق بمنصات التواصل الاجتماعي المختلفة.</p>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">📉</div>
+                    <div class="service-content">
+                        <h3>رشق فيسبوك | رشق انستغرام</h3>
+                        <p>خدمات رشق متخصصة لزيادة التفاعل والمتابعين على منصات فيسبوك وانستغرام.</p>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🖇️🔓</div>
+                    <div class="service-content">
+                        <h3>توزيع حسابات مهجورة</h3>
+                        <p>نوفر حسابات مهجورة عالية الجودة لاستخدامات متعددة مع ضمان الجودة والأمان.</p>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🧩</div>
+                    <div class="service-content">
+                        <h3>وسيط تبادل وبيع وشراء</h3>
+                        <p>نعمل كوسيط موثوق في عمليات التبادل والبيع والشراء لضمان حقوق جميع الأطراف.</p>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">📊</div>
+                    <div class="service-content">
+                        <h3>استراتيجيات التسويق الرقمي</h3>
+                        <p>نطور استراتيجيات تسويق رقمي مخصصة لتعزيز وجودك على منصات التواصل الاجتماعي.</p>
+                    </div>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🪐</div>
+                    <div class="service-content">
+                        <h3>ثقتكم بنا مصدر نجاحنا</h3>
+                        <p>نحن ندرك أن ثقتكم هي أساس استمرارنا، لذلك نعمل بكل جد للحفاظ على هذه الثقة.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Mediators Section -->
+    <section class="mediators" id="mediators">
+        <div class="container">
+            <h2 class="section-title">وسطاؤنا الموثوقون</h2>
+            <div class="mediators-grid">
+                <div class="mediator-card">
+                    <div class="mediator-image">
+                        <img src="h.png" alt="حمزة مسعودي">
+                    </div>
+                    <div class="mediator-content">
+                        <h3>حمزة</h3>
+                        <p>رشق فيسبوك وبيع وساطة فقط</p>
+                        <a href="https://www.facebook.com/hmzhhmswdy" class="social-link" target="_blank">
+                            <i class="fab fa-facebook"></i> التواصل عبر فيسبوك
+                        </a>
+                    </div>
+                </div>
+                <div class="mediator-card">
+                    <div class="mediator-image">
+                        <img src="https://yacine2007.github.io/sadek-belkhiri/logo.jpg" alt="صادق بلخيري">
+                    </div>
+                    <div class="mediator-content">
+                        <h3>صادق بلخيري</h3>
+                        <p>خبير في خدمات التسويق الرقمي والسوشيال ميديا والوساطة والحسابات</p>
+                        <a href="https://www.facebook.com/sasb8" class="social-link" target="_blank">
+                            <i class="fab fa-facebook"></i> التواصل عبر فيسبوك
+                        </a>
+                        <a href="https://yacine2007.github.io/sadek-Accounts-Store/index.html" class="social-link" target="_blank">
+                            <i class="fas fa-store"></i> متجر الحسابات
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Store Section -->
+    <section class="store" id="store">
+        <div class="container">
+            <div class="store-content">
+                <div class="store-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h2>متجر صادق لبيع الحسابات</h2>
+                <p>اكتشف متجرنا المتخصص في بيع الحسابات الموثوقة بأسعار تنافسية. نوفر مجموعة واسعة من الحسابات لجميع منصات التواصل الاجتماعي مع ضمان الجودة والأمان.</p>
+                <a href="https://yacine2007.github.io/sadek-Accounts-Store/index.html" class="btn" target="_blank">
+                    <i class="fas fa-external-link-alt"></i> زيارة المتجر الآن
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Group Section -->
+    <section class="group" id="group">
+        <div class="container">
+            <div class="group-content">
+                <div class="group-icon">
+                    <i class="fab fa-facebook"></i>
+                </div>
+                <h2>انضم إلى مجتمعنا على فيسبوك</h2>
+                <p>انضم إلى مجموعتنا على فيسبوك لتكون أول من يعرف عن عروضنا الحصرية، وتلقي آخر المستجدات في عالم التسويق الرقمي، والتفاعل مع مجتمعنا النشط من العملاء والمهتمين.</p>
+                <a href="https://facebook.com/groups/25399354196391174/" class="btn" target="_blank">
+                    <i class="fab fa-facebook"></i> انضم للمجموعة الآن
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about" id="about">
+        <div class="container">
+            <h2 class="section-title">من نحن</h2>
+            <div class="about-content">
+                <div class="about-text">
+                    <p>Trust Store هي خدمة وساطة وتسويق رقمي مقدمة من شركة B.Y PRO للبرمجيات وخدمات البرمجة، نقدم مجموعة متكاملة من الخدمات المتعلقة بمنصات التواصل الاجتماعي.</p>
+                    <p>نحن نتميز بالاحترافية والأمان في تقديم خدماتنا، مع فريق عمل متخصص يضمن تقديم أفضل الحلول لعملائنا الكرام.</p>
+                    <p>ثقة عملائنا هي أساس نجاحنا، لذلك نعمل بكل جد للحفاظ على هذه الثقة وتقديم أفضل ما لدينا.</p>
+                    
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <a href="https://www.facebook.com/bypro2007" target="_blank">
+                            <img src="https://bypro.kesug.com/B.Y%20PRO.png" alt="B.Y PRO للبرمجيات" class="company-logo-small">
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contact">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <a href="https://www.facebook.com/bypro2007" target="_blank">
+                        <img src="https://bypro.kesug.com/B.Y%20PRO.png" alt="B.Y PRO للبرمجيات">
+                    </a>
+                    <div class="footer-logo-text">
+                        <div>
+                            <span class="trust">Trust</span> <span class="store">Store</span>
+                        </div>
+                        <div class="by-pro">B.Y PRO For software & programming services</div>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h3>روابط سريعة</h3>
+                    <ul>
+                        <li><a href="#home">الرئيسية</a></li>
+                        <li><a href="#services">خدماتنا</a></li>
+                        <li><a href="#mediators">وسطاؤنا</a></li>
+                        <li><a href="#store">متجر الحسابات</a></li>
+                        <li><a href="#group">مجتمعنا</a></li>
+                        <li><a href="#about">من نحن</a></li>
+                        <li><a href="#contact">اتصل بنا</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h3>خدماتنا</h3>
+                    <ul>
+                        <li><a href="#">تسويق رقمي</a></li>
+                        <li><a href="#">وساطة احترافية</a></li>
+                        <li><a href="#">رشق فيسبوك وانستغرام</a></li>
+                        <li><a href="https://yacine2007.github.io/sadek-Accounts-Store/index.html" target="_blank">متجر الحسابات</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h3>تواصل معنا</h3>
+                    <ul>
+                        <li><a href="https://facebook.com/groups/25399354196391174/" target="_blank"><i class="fab fa-facebook"></i> مجتمعنا على فيسبوك</a></li>
+                        <li><a href="https://www.facebook.com/bypro2007" target="_blank"><i class="fab fa-facebook"></i> صفحة B.Y PRO</a></li>
+                        <li><a href="https://www.facebook.com/hmzhhmswdy" target="_blank"><i class="fab fa-facebook"></i> حمزة مسعودي</a></li>
+                        <li><a href="https://www.facebook.com/sasb8" target="_blank"><i class="fab fa-facebook"></i> صادق بلخيري</a></li>
+                        <li><a href="https://yacine2007.github.io/sadek-Accounts-Store/index.html" target="_blank"><i class="fas fa-store"></i> متجر الحسابات</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="copyright">
+                <p>Trust Store &copy; <span id="currentYear"></span> | B.Y PRO For software & programming services</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // JavaScript لإظهار السنة الحالية في الفوتر
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        
+        // إضافة تأثير سلس للتمرير عند النقر على الروابط
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                const targetId = this.getAttribute('href');
+                if(targetId === '#') return;
+                
+                const targetElement = document.querySelector(targetId);
+                if(targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 80,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
